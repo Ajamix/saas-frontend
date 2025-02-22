@@ -11,43 +11,50 @@ import {
   Activity
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { hasPermission } from "@/app/lib/utils";
 
 const routes = [
   {
     label: 'Overview',
     icon: LayoutDashboard,
     href: '/tenant-dashboard',
-    color: "text-sky-500"
+    color: "text-sky-500",
+    requiredPermission: { resource: 'dashboard', action: 'read' as const }
   },
   {
     label: 'Team Members',
     icon: Users,
     href: '/tenant-dashboard/team',
-    color: "text-violet-500"
+    color: "text-violet-500",
+    requiredPermission: { resource: 'users', action: 'read' as const }
   },
   {
     label: 'Roles & Permissions',
     icon: Shield,
     href: '/tenant-dashboard/roles',
-    color: "text-orange-500"
+    color: "text-orange-500",
+    requiredPermission: { resource: 'roles', action: 'read' as const }
   },
   {
     label: 'Subscription',
     icon: CreditCard,
     href: '/tenant-dashboard/subscription',
-    color: "text-emerald-500"
+    color: "text-emerald-500",
+    requiredPermission: { resource: 'subscriptions', action: 'read' as const }
   },
   {
     label: 'Activity Logs',
     icon: Activity,
     href: '/tenant-dashboard/activity',
-    color: "text-blue-500"
+    color: "text-blue-500",
+    requiredPermission: { resource: 'activity-logs', action: 'read' as const }
   },
   {
     label: 'Settings',
     icon: Settings,
     href: '/tenant-dashboard/settings',
-    color: "text-gray-500"
+    color: "text-gray-500",
+    requiredPermission: { resource: 'tenant-settings', action: 'read' as const }
   }
 ];
 
@@ -58,6 +65,11 @@ interface TenantSidebarProps {
 
 export function TenantSidebar({ isCollapsed, onCollapse }: TenantSidebarProps) {
   const pathname = usePathname();
+
+  // Filter routes based on permissions
+  const authorizedRoutes = routes.filter(route => 
+    hasPermission(route.requiredPermission.resource, route.requiredPermission.action)
+  );
 
   return (
     <div className="relative h-full bg-[#111827] text-white">
@@ -78,7 +90,7 @@ export function TenantSidebar({ isCollapsed, onCollapse }: TenantSidebarProps) {
             </h1>
           </div>
           <div className="space-y-1">
-            {routes.map((route) => (
+            {authorizedRoutes.map((route) => (
               <Link
                 key={route.href}
                 href={route.href}

@@ -36,6 +36,7 @@ import { getRoles, createRole, updateRole, deleteRole, type Role, type Permissio
 import { getPermissions } from "@/app/api/permissions";
 import TokenService from "@/app/lib/auth/tokens";
 import { Checkbox } from "@/components/ui/checkbox";
+import { hasPermission } from "@/app/lib/utils";
 
 export default function RolesPage() {
   const [roles, setRoles] = useState<Role[]>([]);
@@ -49,6 +50,10 @@ export default function RolesPage() {
     permissionIds: [] as string[]
   });
   const [openCombobox, setOpenCombobox] = useState(false);
+
+  const canCreateRole = hasPermission('roles', 'create');
+  const canUpdateRole = hasPermission('roles', 'update');
+  const canDeleteRole = hasPermission('roles', 'delete');
 
   useEffect(() => {
     fetchData();
@@ -107,6 +112,10 @@ export default function RolesPage() {
       toast.error("Default roles cannot be edited");
       return;
     }
+    if (!canUpdateRole) {
+      toast.error("You don't have permission to edit roles");
+      return;
+    }
     setEditingRole(role);
     setFormData({
       name: role.name,
@@ -119,6 +128,10 @@ export default function RolesPage() {
   const handleDelete = async (role: Role) => {
     if (role.isDefault) {
       toast.error("Default roles cannot be deleted");
+      return;
+    }
+    if (!canDeleteRole) {
+      toast.error("You don't have permission to delete roles");
       return;
     }
     try {
@@ -177,162 +190,164 @@ export default function RolesPage() {
           <h2 className="text-3xl font-bold tracking-tight">Roles & Permissions</h2>
           <p className="text-muted-foreground">Manage roles and their permissions</p>
         </div>
-        <Dialog open={openDialog} onOpenChange={(open) => {
-          if (!open) resetForm();
-          setOpenDialog(open);
-        }}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Role
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{editingRole ? 'Edit Role' : 'Create New Role'}</DialogTitle>
-              <DialogDescription>
-                {editingRole ? 'Edit role details and permissions below.' : 'Add a new role with specific permissions.'}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid grid-cols-5 gap-6 py-4">
-              {/* Left Column - Role Details */}
-              <div className="col-span-2 space-y-4">
-                <div className="space-y-4">
-                  <div>
-                    <Label className="text-base font-semibold">Role Details</Label>
-                    <p className="text-sm text-muted-foreground">Basic information about the role</p>
-                  </div>
+        {canCreateRole && (
+          <Dialog open={openDialog} onOpenChange={(open) => {
+            if (!open) resetForm();
+            setOpenDialog(open);
+          }}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Role
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{editingRole ? 'Edit Role' : 'Create New Role'}</DialogTitle>
+                <DialogDescription>
+                  {editingRole ? 'Edit role details and permissions below.' : 'Add a new role with specific permissions.'}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid grid-cols-5 gap-6 py-4">
+                {/* Left Column - Role Details */}
+                <div className="col-span-2 space-y-4">
                   <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Role Name</Label>
-                      <Input
-                        value={formData.name}
-                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                        placeholder="e.g., Team Manager"
-                      />
+                    <div>
+                      <Label className="text-base font-semibold">Role Details</Label>
+                      <p className="text-sm text-muted-foreground">Basic information about the role</p>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Description</Label>
-                      <Textarea
-                        value={formData.description}
-                        onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                        placeholder="Describe the role's responsibilities"
-                        className="min-h-[120px]"
-                      />
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Role Name</Label>
+                        <Input
+                          value={formData.name}
+                          onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                          placeholder="e.g., Team Manager"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Description</Label>
+                        <Textarea
+                          value={formData.description}
+                          onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                          placeholder="Describe the role's responsibilities"
+                          className="min-h-[120px]"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Right Column - Permissions */}
-              <div className="col-span-3 space-y-4">
-                <div>
-                  <Label className="text-base font-semibold">Permissions</Label>
-                  <p className="text-sm text-muted-foreground">Select the permissions for this role</p>
-                </div>
-                <div className="border rounded-lg shadow-sm">
-                  <div className="p-3 bg-muted/50 border-b">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Available Permissions</span>
-                      <Badge variant="secondary">
-                        {formData.permissionIds.length} selected
-                      </Badge>
-                    </div>
+                {/* Right Column - Permissions */}
+                <div className="col-span-3 space-y-4">
+                  <div>
+                    <Label className="text-base font-semibold">Permissions</Label>
+                    <p className="text-sm text-muted-foreground">Select the permissions for this role</p>
                   </div>
-                  <div className="divide-y">
-                    {Object.entries(groupPermissionsByResource()).map(([resource, perms]) => (
-                      <div key={resource} className="p-4">
-                        <div className="flex items-center justify-between mb-4">
-                          <h4 className="font-medium text-sm flex items-center gap-2">
-                            {resource === 'users' && <Users className="h-4 w-4 text-blue-500" />}
-                            {resource === 'roles' && <Shield className="h-4 w-4 text-orange-500" />}
-                            {resource === 'profiles' && <UserCircle className="h-4 w-4 text-purple-500" />}
-                            {resource === 'notifications' && <Bell className="h-4 w-4 text-yellow-500" />}
-                            {resource === 'tenant_settings' && <Settings className="h-4 w-4 text-green-500" />}
-                            {resource === 'activity_logs' && <ScrollText className="h-4 w-4 text-red-500" />}
-                            {resource === 'dashboard' && <LayoutDashboard className="h-4 w-4 text-cyan-500" />}
-                            {resource.replace(/_/g, ' ').toUpperCase()}
-                          </h4>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 text-xs"
-                            onClick={() => {
-                              const resourcePermissionIds = perms.map(p => p.id);
-                              const allSelected = resourcePermissionIds.every(id => 
-                                formData.permissionIds.includes(id)
-                              );
-                              
-                              setFormData(prev => ({
-                                ...prev,
-                                permissionIds: allSelected
-                                  ? prev.permissionIds.filter(id => !resourcePermissionIds.includes(id))
-                                  : [...new Set([...prev.permissionIds, ...resourcePermissionIds])]
-                              }));
-                            }}
-                          >
-                            {perms.every(p => formData.permissionIds.includes(p.id))
-                              ? "Deselect All"
-                              : "Select All"}
-                          </Button>
-                        </div>
-                        <div className="grid grid-cols-1 gap-2">
-                          {perms.map((permission) => (
-                            <label
-                              key={permission.id}
-                              className={cn(
-                                "flex items-center space-x-3 cursor-pointer p-2 rounded-md transition-colors",
-                                "hover:bg-accent hover:text-accent-foreground",
-                                formData.permissionIds.includes(permission.id) && "bg-accent/50"
-                              )}
+                  <div className="border rounded-lg shadow-sm">
+                    <div className="p-3 bg-muted/50 border-b">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Available Permissions</span>
+                        <Badge variant="secondary">
+                          {formData.permissionIds.length} selected
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="divide-y">
+                      {Object.entries(groupPermissionsByResource()).map(([resource, perms]) => (
+                        <div key={resource} className="p-4">
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className="font-medium text-sm flex items-center gap-2">
+                              {resource === 'users' && <Users className="h-4 w-4 text-blue-500" />}
+                              {resource === 'roles' && <Shield className="h-4 w-4 text-orange-500" />}
+                              {resource === 'profiles' && <UserCircle className="h-4 w-4 text-purple-500" />}
+                              {resource === 'notifications' && <Bell className="h-4 w-4 text-yellow-500" />}
+                              {resource === 'tenant_settings' && <Settings className="h-4 w-4 text-green-500" />}
+                              {resource === 'activity_logs' && <ScrollText className="h-4 w-4 text-red-500" />}
+                              {resource === 'dashboard' && <LayoutDashboard className="h-4 w-4 text-cyan-500" />}
+                              {resource.replace(/_/g, ' ').toUpperCase()}
+                            </h4>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 text-xs"
+                              onClick={() => {
+                                const resourcePermissionIds = perms.map(p => p.id);
+                                const allSelected = resourcePermissionIds.every(id => 
+                                  formData.permissionIds.includes(id)
+                                );
+                                
+                                setFormData(prev => ({
+                                  ...prev,
+                                  permissionIds: allSelected
+                                    ? prev.permissionIds.filter(id => !resourcePermissionIds.includes(id))
+                                    : [...new Set([...prev.permissionIds, ...resourcePermissionIds])]
+                                }));
+                              }}
                             >
-                              <Checkbox
-                                checked={formData.permissionIds.includes(permission.id)}
-                                onCheckedChange={(checked: boolean) => {
-                                  setFormData(prev => ({
-                                    ...prev,
-                                    permissionIds: checked
-                                      ? [...prev.permissionIds, permission.id]
-                                      : prev.permissionIds.filter(id => id !== permission.id)
-                                  }));
-                                }}
-                              />
-                              <div className="grid gap-1.5 leading-none">
-                                <span className="text-sm font-medium">
-                                  {permission.description}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {permission.name}
-                                </span>
-                              </div>
-                            </label>
-                          ))}
+                              {perms.every(p => formData.permissionIds.includes(p.id))
+                                ? "Deselect All"
+                                : "Select All"}
+                            </Button>
+                          </div>
+                          <div className="grid grid-cols-1 gap-2">
+                            {perms.map((permission) => (
+                              <label
+                                key={permission.id}
+                                className={cn(
+                                  "flex items-center space-x-3 cursor-pointer p-2 rounded-md transition-colors",
+                                  "hover:bg-accent hover:text-accent-foreground",
+                                  formData.permissionIds.includes(permission.id) && "bg-accent/50"
+                                )}
+                              >
+                                <Checkbox
+                                  checked={formData.permissionIds.includes(permission.id)}
+                                  onCheckedChange={(checked: boolean) => {
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      permissionIds: checked
+                                        ? [...prev.permissionIds, permission.id]
+                                        : prev.permissionIds.filter(id => id !== permission.id)
+                                    }));
+                                  }}
+                                />
+                                <div className="grid gap-1.5 leading-none">
+                                  <span className="text-sm font-medium">
+                                    {permission.description}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {permission.name}
+                                  </span>
+                                </div>
+                              </label>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                    {Object.keys(groupPermissionsByResource()).length === 0 && (
-                      <div className="p-8 text-center">
-                        <Shield className="h-8 w-8 text-muted-foreground mx-auto mb-4" />
-                        <h3 className="text-sm font-medium">No Permissions Available</h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          There are no permissions configured for this tenant.
-                        </p>
-                      </div>
-                    )}
+                      ))}
+                      {Object.keys(groupPermissionsByResource()).length === 0 && (
+                        <div className="p-8 text-center">
+                          <Shield className="h-8 w-8 text-muted-foreground mx-auto mb-4" />
+                          <h3 className="text-sm font-medium">No Permissions Available</h3>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            There are no permissions configured for this tenant.
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <DialogFooter className="mt-6">
-              <Button variant="outline" onClick={() => setOpenDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSubmit} disabled={!formData.name}>
-                {editingRole ? 'Update Role' : 'Create Role'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter className="mt-6">
+                <Button variant="outline" onClick={() => setOpenDialog(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSubmit} disabled={!formData.name}>
+                  {editingRole ? 'Update Role' : 'Create Role'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       <div className="grid gap-6">
@@ -353,24 +368,28 @@ export default function RolesPage() {
                   <CardDescription>{role.description}</CardDescription>
                 </div>
                 <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => handleEdit(role)}
-                    disabled={role.isDefault}
-                    title={role.isDefault ? "Default roles cannot be edited" : "Edit role"}
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => handleDelete(role)}
-                    disabled={role.isDefault}
-                    title={role.isDefault ? "Default roles cannot be deleted" : "Delete role"}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {canUpdateRole && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleEdit(role)}
+                      disabled={role.isDefault}
+                      title={role.isDefault ? "Default roles cannot be edited" : "Edit role"}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {canDeleteRole && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleDelete(role)}
+                      disabled={role.isDefault}
+                      title={role.isDefault ? "Default roles cannot be deleted" : "Delete role"}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardHeader>

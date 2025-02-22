@@ -27,7 +27,7 @@ import { Loader2, Plus, Search, Edit2, Trash2, UserPlus, Mail, Lock, User as Use
 import { toast } from "sonner";
 import { getUsers, createUser, updateUser, deleteUser, type User as UserType, type GetUsersParams } from "@/app/api/users";
 import { getRoles, type Role } from "@/app/api/roles";
-import { cn } from "@/lib/utils";
+import { hasPermission } from "@/app/lib/utils";
 import debounce from "lodash/debounce";
 
 const getInitials = (firstName: string, lastName: string) => {
@@ -132,6 +132,10 @@ export default function TeamPage() {
   });
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+
+  const canCreateUser = hasPermission('users', 'create');
+  const canUpdateUser = hasPermission('users', 'update');
+  const canDeleteUser = hasPermission('users', 'delete');
 
   useEffect(() => {
     fetchRoles();
@@ -270,143 +274,142 @@ export default function TeamPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex justify-between items-center">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Team Members</h2>
-          <p className="text-muted-foreground">Manage your organization's team members</p>
+          <p className="text-muted-foreground">Manage your team members and their roles</p>
         </div>
-        <Dialog open={openDialog} onOpenChange={(open) => {
-          setOpenDialog(open);
-          if (!open) resetForm();
-        }}>
-          <DialogTrigger asChild>
-            <Button>
-              <UserPlus className="mr-2 h-4 w-4" />
-              Add Member
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>{editingUser ? 'Edit Team Member' : 'Add New Team Member'}</DialogTitle>
-              <DialogDescription>
-                {editingUser 
-                  ? "Update the team member's information and roles" 
-                  : "Add a new member to your team and assign their roles"}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-6 py-4">
-              <div className="grid grid-cols-2 gap-4">
+        {canCreateUser && (
+          <Dialog open={openDialog} onOpenChange={setOpenDialog}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Team Member
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle>{editingUser ? 'Edit Team Member' : 'Add New Team Member'}</DialogTitle>
+                <DialogDescription>
+                  {editingUser 
+                    ? "Update the team member's information and roles" 
+                    : "Add a new member to your team and assign their roles"}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-6 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName">First Name</Label>
+                    <div className="relative">
+                      <UserIcon className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="firstName"
+                        className="pl-9"
+                        value={formData.firstName}
+                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                        placeholder="John"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Last Name</Label>
+                    <div className="relative">
+                      <UserIcon className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="lastName"
+                        className="pl-9"
+                        value={formData.lastName}
+                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                        placeholder="Doe"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name</Label>
+                  <Label htmlFor="email">Email</Label>
                   <div className="relative">
                     <UserIcon className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
-                      id="firstName"
+                      id="email"
+                      type="email"
                       className="pl-9"
-                      value={formData.firstName}
-                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                      placeholder="John"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="john.doe@example.com"
+                      disabled={!!editingUser}
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name</Label>
-                  <div className="relative">
-                    <UserIcon className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="lastName"
-                      className="pl-9"
-                      value={formData.lastName}
-                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                      placeholder="Doe"
-                    />
+
+                {!editingUser && (
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="password"
+                        type="password"
+                        className="pl-9"
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        placeholder="••••••••"
+                      />
+                    </div>
                   </div>
-                </div>
-              </div>
+                )}
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <UserIcon className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="email"
-                    type="email"
-                    className="pl-9"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="john.doe@example.com"
-                    disabled={!!editingUser}
-                  />
-                </div>
-              </div>
-
-              {!editingUser && (
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="password"
-                      type="password"
-                      className="pl-9"
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      placeholder="••••••••"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label>Role</Label>
-                <Select
-                  value={formData.roleId}
-                  onValueChange={(value) => setFormData({ ...formData, roleId: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {roles.map((role) => (
-                      <SelectItem key={role.id} value={role.id}>
-                        <div>
-                          <div className="font-medium">{role.name}</div>
-                          <div className="text-sm text-muted-foreground">{role.description}</div>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {editingUser && (
-                <div className="space-y-2">
-                  <Label>Status</Label>
+                  <Label>Role</Label>
                   <Select
-                    value={formData.isActive ? "active" : "inactive"}
-                    onValueChange={(value) => setFormData({ ...formData, isActive: value === "active" })}
+                    value={formData.roleId}
+                    onValueChange={(value) => setFormData({ ...formData, roleId: value })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
+                      <SelectValue placeholder="Select a role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
+                      {roles.map((role) => (
+                        <SelectItem key={role.id} value={role.id}>
+                          <div>
+                            <div className="font-medium">{role.name}</div>
+                            <div className="text-sm text-muted-foreground">{role.description}</div>
+                          </div>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
-              )}
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setOpenDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSubmit}>
-                {editingUser ? 'Save Changes' : 'Add Member'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+
+                {editingUser && (
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select
+                      value={formData.isActive ? "active" : "inactive"}
+                      onValueChange={(value) => setFormData({ ...formData, isActive: value === "active" })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setOpenDialog(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSubmit}>
+                  {editingUser ? 'Save Changes' : 'Add Member'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       <Card>
@@ -461,20 +464,24 @@ export default function TeamPage() {
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(user)}
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(user)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {canUpdateUser && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(user)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {canDeleteUser && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(user)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>

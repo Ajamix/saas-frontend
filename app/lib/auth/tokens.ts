@@ -8,6 +8,8 @@ interface DecodedToken {
   sub: string;
   tenantId: string;
   isSuperAdmin: boolean;
+  hasSetupProfile: boolean;
+  permissions: Record<string, string[]>;
   iat: number;
   exp: number;
 }

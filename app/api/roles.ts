@@ -19,6 +19,7 @@ export interface Role {
   name: string;
   description: string;
   tenantId: string;
+  isDefault: boolean;
   permissions: Permission[];
 }
 

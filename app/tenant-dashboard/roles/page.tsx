@@ -103,6 +103,10 @@ export default function RolesPage() {
   };
 
   const handleEdit = (role: Role) => {
+    if (role.isDefault) {
+      toast.error("Default roles cannot be edited");
+      return;
+    }
     setEditingRole(role);
     setFormData({
       name: role.name,
@@ -113,6 +117,10 @@ export default function RolesPage() {
   };
 
   const handleDelete = async (role: Role) => {
+    if (role.isDefault) {
+      toast.error("Default roles cannot be deleted");
+      return;
+    }
     try {
       await deleteRole(role.id);
       toast.success("Role deleted successfully");
@@ -336,6 +344,11 @@ export default function RolesPage() {
                   <CardTitle className="flex items-center gap-2">
                     {role.name}
                     <Shield className="h-4 w-4 text-orange-500" />
+                    {role.isDefault && (
+                      <Badge variant="secondary" className="ml-2">
+                        Default Role
+                      </Badge>
+                    )}
                   </CardTitle>
                   <CardDescription>{role.description}</CardDescription>
                 </div>
@@ -344,6 +357,8 @@ export default function RolesPage() {
                     variant="outline"
                     size="icon"
                     onClick={() => handleEdit(role)}
+                    disabled={role.isDefault}
+                    title={role.isDefault ? "Default roles cannot be edited" : "Edit role"}
                   >
                     <Edit2 className="h-4 w-4" />
                   </Button>
@@ -351,6 +366,8 @@ export default function RolesPage() {
                     variant="outline"
                     size="icon"
                     onClick={() => handleDelete(role)}
+                    disabled={role.isDefault}
+                    title={role.isDefault ? "Default roles cannot be deleted" : "Delete role"}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

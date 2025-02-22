@@ -20,12 +20,25 @@ export default function RegisterPage() {
     password: "",
     firstName: "",
     lastName: "",
-    tenantName: "",
-    subdomain: "",
+    tenant: {
+      tenantName: "",
+      subdomain: ""
+    }
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === "tenantName" || name === "subdomain") {
+      setFormData(prev => ({
+        ...prev,
+        tenant: {
+          ...prev.tenant,
+          [name]: value
+        }
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -131,7 +144,7 @@ export default function RegisterPage() {
                     id="tenantName"
                     name="tenantName"
                     className="pl-9"
-                    value={formData.tenantName}
+                    value={formData.tenant.tenantName}
                     onChange={handleChange}
                     required
                   />
@@ -146,7 +159,7 @@ export default function RegisterPage() {
                       id="subdomain"
                       name="subdomain"
                       className="pl-3"
-                      value={formData.subdomain}
+                      value={formData.tenant.subdomain}
                       onChange={handleChange}
                       required
                     />

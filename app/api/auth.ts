@@ -52,6 +52,8 @@ export const register = async (data: RegisterData): Promise<ApiResponse<any>> =>
 
 export const login = async (credentials: LoginCredentials): Promise<ApiResponse<any>> => {
   try {
+    console.log('Making login request with credentials:', { ...credentials, password: '***' });
+    
     const response = await fetch(`${API_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -59,18 +61,25 @@ export const login = async (credentials: LoginCredentials): Promise<ApiResponse<
     });
     
     const result = await response.json();
+    console.log('Login response:', result);
     
     if (!response.ok) {
+      console.error('Login failed:', result);
       return { error: result };
     }
     
     // Store tokens
+    console.log('Storing tokens...');
+    // Set secure cookies first
+    document.cookie = `accessToken=${result.accessToken}; path=/; max-age=3600; samesite=strict`;
+    document.cookie = `refreshToken=${result.refreshToken}; path=/; max-age=86400; samesite=strict`;
+    // Then store in localStorage via TokenService
     TokenService.setTokens(result);
-    document.cookie = `accessToken=${result.accessToken}; path=/`;
-    document.cookie = `refreshToken=${result.refreshToken}; path=/`;
+    console.log('Tokens stored successfully');
     
     return { data: result };
   } catch (error) {
+    console.error('Login error:', error);
     return { 
       error: {
         message: "An unexpected error occurred",

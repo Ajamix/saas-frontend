@@ -1,14 +1,13 @@
-"use client";
-
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { 
   LayoutDashboard, 
-  CreditCard,
-  ChevronLeft,
   Users,
   Settings,
+  ChevronLeft,
+  Shield,
+  CreditCard,
   Activity
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,47 +16,47 @@ const routes = [
   {
     label: 'Overview',
     icon: LayoutDashboard,
-    href: '/admin/dashboard',
+    href: '/tenant-dashboard',
     color: "text-sky-500"
   },
   {
-    label: 'Tenants',
+    label: 'Team Members',
     icon: Users,
-    href: '/admin/dashboard/tenants',
+    href: '/tenant-dashboard/team',
     color: "text-violet-500"
   },
   {
-    label: 'Subscriptions',
-    icon: CreditCard,
-    href: '/admin/dashboard/subscriptions',
-    color: "text-pink-500"
+    label: 'Roles & Permissions',
+    icon: Shield,
+    href: '/tenant-dashboard/roles',
+    color: "text-orange-500"
   },
   {
-    label: 'Subscription Plans',
+    label: 'Subscription',
     icon: CreditCard,
-    href: '/admin/dashboard/subscription-plans',
+    href: '/tenant-dashboard/subscription',
     color: "text-emerald-500"
   },
   {
     label: 'Activity Logs',
     icon: Activity,
-    href: '/admin/dashboard/activity-logs',
+    href: '/tenant-dashboard/activity',
     color: "text-blue-500"
   },
   {
-    label: 'Global Settings',
+    label: 'Settings',
     icon: Settings,
-    href: '/admin/dashboard/global-settings',
-    color: "text-orange-500"
+    href: '/tenant-dashboard/settings',
+    color: "text-gray-500"
   }
 ];
 
-interface AdminSidebarProps {
+interface TenantSidebarProps {
   isCollapsed: boolean;
   onCollapse: (collapsed: boolean) => void;
 }
 
-export function AdminSidebar({ isCollapsed, onCollapse }: AdminSidebarProps) {
+export function TenantSidebar({ isCollapsed, onCollapse }: TenantSidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -75,7 +74,7 @@ export function AdminSidebar({ isCollapsed, onCollapse }: AdminSidebarProps) {
               "font-bold transition-all duration-300",
               isCollapsed ? "text-lg" : "text-2xl"
             )}>
-              {isCollapsed ? "AP" : "Admin Panel"}
+              {isCollapsed ? "TD" : "Tenant Dashboard"}
             </h1>
           </div>
           <div className="space-y-1">

@@ -30,6 +30,24 @@ class AuthClient {
       return response.json();
     }
 
+    // Create a structured error object
+    const error: any = new Error('API request failed');
+    error.status = response.status;
+    
+    try {
+      const errorData = await response.json();
+      error.response = {
+        status: response.status,
+        message: errorData.message || response.statusText,
+        data: errorData
+      };
+    } catch {
+      error.response = {
+        status: response.status,
+        message: response.statusText
+      };
+    }
+
     if (response.status === 401) {
       try {
         // Try to refresh the token one more time
@@ -59,7 +77,7 @@ class AuthClient {
       }
     }
 
-    throw new Error(`HTTP error! status: ${response.status}`);
+    throw error;
   }
 
   static async get(endpoint: string) {

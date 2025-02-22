@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useRouter, useSearchParams } from "next/navigation";
 import { login } from "@/app/api/auth";
+import { checkProfile } from "@/app/api/profiles";
 import type { LoginCredentials } from "@/app/api/types";
 import Link from "next/link";
 import { ArrowRight, Building2, Mail, Lock } from "lucide-react";
@@ -44,10 +45,24 @@ export default function LoginPage() {
         description: response.error.error,
       });
     } else {
-      toast.success("Login successful!", {
-        description: "Redirecting to dashboard...",
-      });
-      router.push("/dashboard");
+      try {
+        const { exists } = await checkProfile();
+        if (!exists) {
+          toast.success("Login successful!", {
+            description: "Please complete your profile setup.",
+          });
+          router.push("/setup-profile");
+        } else {
+          toast.success("Login successful!", {
+            description: "Redirecting to dashboard...",
+          });
+          router.push("/tenant-dashboard");
+        }
+      } catch (error) {
+        console.error('Failed to check profile:', error);
+        // If we can't check profile status, assume it needs to be set up
+        router.push("/setup-profile");
+      }
     }
     
     setLoading(false);

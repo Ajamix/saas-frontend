@@ -9,6 +9,8 @@ export interface RegisterData {
   password: string;
   firstName: string;
   lastName: string;
-  tenantName: string;
-  subdomain: string;
+  tenant: {
+    tenantName: string;
+    subdomain: string;
+  };
 } 

@@ -75,23 +75,23 @@ class TokenService {
   }
 
   static async refreshTokens(): Promise<TokenResponse> {
-    // If there's already a refresh in progress, return that promise
     if (this.refreshPromise) {
       return this.refreshPromise;
     }
 
-    const refreshToken = this.getRefreshToken();
+    const refreshToken = this.getRefreshToken(); // Ensure this method exists
     if (!refreshToken) {
       throw new Error('No refresh token available');
     }
 
-    // Create a new refresh promise
     this.refreshPromise = (async () => {
       try {
         const response = await fetch(`${API_URL}/auth/refresh`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken }),
+          headers: { 
+            'Content-Type': 'application/json',
+            'refresh-token': refreshToken
+           },
         });
 
         if (!response.ok) {
@@ -99,14 +99,16 @@ class TokenService {
         }
 
         const tokens = await response.json();
-        this.setTokens(tokens);
+        this.setTokens(tokens); // Ensure this method exists
         return tokens;
       } catch (error) {
         console.error('Token refresh failed:', error);
         throw error;
       } finally {
-        // Clear the promise so subsequent calls can create a new one
+        // Store the resolved token before clearing the promise
+        const resolvedPromise = this.refreshPromise;
         this.refreshPromise = null;
+        return resolvedPromise; // Prevent multiple refreshes on race conditions
       }
     })();
 

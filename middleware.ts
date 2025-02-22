@@ -1,10 +1,23 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
+  // Skip middleware for these paths
+  const publicPaths = [
+    '/auth/login',
+    '/auth/register',
+    '/auth-admin/login',
+    '/_next',
+    '/api',
+  ]
+
+  if (publicPaths.some(path => request.nextUrl.pathname.startsWith(path))) {
+    return NextResponse.next()
+  }
+
   const token = request.cookies.get('accessToken')?.value;
   const isAdminRoute = request.nextUrl.pathname.startsWith('/admin');
-  const isDashboardRoute = request.nextUrl.pathname.startsWith('/dashboard');
+  const isDashboardRoute = request.nextUrl.pathname.startsWith('/tenant-dashboard');
   const isAuthRoute = request.nextUrl.pathname.startsWith('/auth') || request.nextUrl.pathname.startsWith('/auth-admin');
 
   // If no token and trying to access protected route
@@ -17,7 +30,7 @@ export function middleware(request: NextRequest) {
   if (token && isAuthRoute) {
     const redirectUrl = request.nextUrl.pathname.startsWith('/auth-admin') 
       ? '/admin/dashboard'
-      : '/dashboard';
+      : '/tenant-dashboard';
     return NextResponse.redirect(new URL(redirectUrl, request.url));
   }
 
@@ -28,7 +41,7 @@ export function middleware(request: NextRequest) {
       const decodedPayload = JSON.parse(atob(payload));
       
       if (!decodedPayload.isSuperAdmin) {
-        return NextResponse.redirect(new URL('/dashboard', request.url));
+        return NextResponse.redirect(new URL('/tenant-dashboard', request.url));
       }
     } catch (error) {
       return NextResponse.redirect(new URL('/auth-admin/login', request.url));
@@ -40,7 +53,7 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/dashboard/:path*',
+    '/tenant-dashboard/:path*',
     '/admin/:path*',
     '/auth/:path*',
     '/auth-admin/:path*',

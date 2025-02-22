@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { logout } from "@/app/api/auth";
 import TokenService from "@/app/lib/auth/tokens";
+import { NotificationsDropdown } from "../notifications/notifications-dropdown";
 
 export function AdminNavbar() {
   const router = useRouter();
@@ -36,27 +37,31 @@ export function AdminNavbar() {
 
   return (
     <div className="h-16 border-b px-4 flex items-center justify-end bg-white">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <div className="flex items-center gap-x-2 cursor-pointer hover:opacity-80">
-            <Avatar>
-              <AvatarFallback>
-                <UserCircle className="h-5 w-5" />
-              </AvatarFallback>
-            </Avatar>
-            <div className="text-sm font-medium">
-              {userEmail}
+      <div className="flex items-center gap-4">
+        <NotificationsDropdown />
+        
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <div className="flex items-center gap-x-2 cursor-pointer hover:opacity-80">
+              <Avatar>
+                <AvatarFallback>
+                  <UserCircle className="h-5 w-5" />
+                </AvatarFallback>
+              </Avatar>
+              <div className="text-sm font-medium">
+                {userEmail}
+              </div>
             </div>
-          </div>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel>My Account</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
-            Log out
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+              Log out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 } 

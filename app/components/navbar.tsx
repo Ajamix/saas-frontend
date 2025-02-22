@@ -15,6 +15,7 @@ import {
 import { logout } from "@/app/api/auth";
 import TokenService from "@/app/lib/auth/tokens";
 import { useEffect, useState } from "react";
+import { NotificationsDropdown } from "./notifications/notifications-dropdown";
 
 export function Navbar() {
   const router = useRouter();
@@ -41,30 +42,34 @@ export function Navbar() {
         Your App
       </Link>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <div className="flex items-center gap-x-2 cursor-pointer hover:opacity-80">
-            <Avatar>
-              <AvatarFallback>
-                <UserCircle className="h-5 w-5" />
-              </AvatarFallback>
-            </Avatar>
-            <div className="text-sm font-medium">
-              {userEmail}
+      <div className="flex items-center gap-4">
+        <NotificationsDropdown />
+        
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <div className="flex items-center gap-x-2 cursor-pointer hover:opacity-80">
+              <Avatar>
+                <AvatarFallback>
+                  <UserCircle className="h-5 w-5" />
+                </AvatarFallback>
+              </Avatar>
+              <div className="text-sm font-medium">
+                {userEmail}
+              </div>
             </div>
-          </div>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel>My Account</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem asChild>
-            <Link href="/tenant-dashboard/profile">Profile Settings</Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
-            Log out
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/tenant-dashboard/profile">Profile Settings</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+              Log out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 } 

@@ -97,51 +97,61 @@ class NotificationService {
 
   private initializeEventSource() {
     if (this.isInitializing) {
-      console.log('Already initializing EventSource, skipping...');
+      console.log('[NotificationService] Already initializing EventSource, skipping...');
       return;
     }
 
     const token = TokenService.getAccessToken();
     if (!token) {
-      console.error('No access token available');
+      console.error('[NotificationService] No access token available');
       return;
     }
 
     try {
       this.isInitializing = true;
+      console.log('[NotificationService] Starting EventSource initialization...');
 
       if (this.eventSource) {
-        console.log('Cleaning up existing EventSource');
+        console.log('[NotificationService] Cleaning up existing EventSource');
         this.eventSource.close();
         this.eventSource = null;
       }
 
-      console.log('Initializing EventSource connection...');
-      const eventSource = new EventSourcePolyfill(`${API_URL}/notifications/sse/subscribe`, {
+      const url = `${API_URL}/notifications/sse/subscribe`;
+      console.log('[NotificationService] Connecting to:', url);
+      
+      const eventSource = new EventSourcePolyfill(url, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'text/event-stream',
           'Cache-Control': 'no-cache',
           'Connection': 'keep-alive'
         },
-        heartbeatTimeout: 60000, // Reduce to 1 minute
+        heartbeatTimeout: 60000,
         withCredentials: true
-      });
-
-      // Log the connection URL and headers for debugging
-      console.log('SSE Connection URL:', `${API_URL}/notifications/sse/subscribe`);
-      console.log('SSE Connection Headers:', {
-        'Authorization': 'Bearer [hidden]',
-        'Accept': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive'
       });
 
       // Store event source only after successful setup
       this.eventSource = eventSource;
 
+      // Handle message event (default event)
+      eventSource.onmessage = (event) => {
+        console.log('[NotificationService] 📥 Received default message event:', event.data);
+        try {
+          const data = JSON.parse(event.data);
+          if (this.validateNotification(data)) {
+            console.log('[NotificationService] ✅ Valid notification from message event:', data);
+            this.emit('notification', data);
+          }
+        } catch (error) {
+          console.error('[NotificationService] ❌ Error processing message event:', error);
+        }
+      };
+
+      // Handle open event
       eventSource.onopen = () => {
-        console.log('EventSource connected successfully');
+        console.log('[NotificationService] ✅ EventSource connected successfully');
+        console.log('[NotificationService] Current readyState:', eventSource.readyState);
         this.isInitializing = false;
         this.reconnectAttempts = 0;
         if (this.reconnectTimer) {
@@ -151,11 +161,13 @@ class NotificationService {
         this.emit('connection_status', true);
       };
 
+      // Handle error event
       eventSource.onerror = (error) => {
-        console.error('EventSource error:', error);
-        // Log more detailed error information
+        console.error('[NotificationService] ❌ EventSource error:', error);
+        console.log('[NotificationService] EventSource readyState:', eventSource.readyState);
+        
         if (error instanceof MessageEvent) {
-          console.error('Error details:', {
+          console.error('[NotificationService] Error details:', {
             type: error.type,
             data: error.data,
             lastEventId: error.lastEventId,
@@ -167,47 +179,37 @@ class NotificationService {
         this.isInitializing = false;
         
         if (eventSource.readyState === EventSourcePolyfill.CLOSED) {
-          console.log('Connection closed, current state:', {
-            readyState: eventSource.readyState,
-            reconnectAttempts: this.reconnectAttempts,
-            isInitializing: this.isInitializing
-          });
+          console.log('[NotificationService] Connection closed, attempting reconnect');
           this.emit('connection_status', false);
-          
-          // Add a small delay before attempting reconnection
-          setTimeout(() => {
-            this.handleReconnect();
-          }, 1000);
+          setTimeout(() => this.handleReconnect(), 1000);
         }
       };
 
-      const handleEvent = (eventName: string): EventListenerOrEventListenerObject => (event: Event) => {
-        if (event instanceof MessageEvent) {
-          try {
-            const data = JSON.parse(event.data);
-            console.log(`Received ${eventName}:`, data);
-            
-            if (eventName === 'notification' && !this.validateNotification(data)) {
-              console.warn('Received invalid notification format:', data);
-              return;
-            }
-            
-            this.emit(eventName, data);
-          } catch (error) {
-            console.error(`Error parsing ${eventName} data:`, error);
-          }
-        }
-      };
+      // Add specific event listeners for NestJS SSE events
+const events: string[] = ['notification', 'notification_read', 'notification_deleted', 'notifications_cleared'];
 
-      // Set up event listeners with type assertions
-      (eventSource as any).addEventListener('notification', handleEvent('notification'));
-      (eventSource as any).addEventListener('notification_read', handleEvent('notification_read'));
-      (eventSource as any).addEventListener('notification_deleted', handleEvent('notification_deleted'));
-      (eventSource as any).addEventListener('notifications_cleared', handleEvent('notifications_cleared'));
-      (eventSource as any).addEventListener('broadcast', handleEvent('broadcast'));
+events.forEach(eventName => {
+  console.log(`[NotificationService] Adding listener for ${eventName}`);
+
+  eventSource.addEventListener(eventName as unknown as keyof EventSourceEventMap, (event) => {
+    const messageEvent = event as MessageEvent;
+    console.log(`[NotificationService] 📥 Received ${eventName} event:`, messageEvent.data);
+    try {
+      const data = JSON.parse(messageEvent.data);
+      console.log(`[NotificationService] Parsed ${eventName} data:`, data);
+      this.emit(eventName, data);
+    } catch (error) {
+      console.error(`[NotificationService] ❌ Error processing ${eventName} event:`, error);
+    }
+  });
+});
+
+      
+
+      console.log('[NotificationService] EventSource setup complete');
 
     } catch (error) {
-      console.error('Failed to initialize EventSource:', error);
+      console.error('[NotificationService] ❌ Failed to initialize EventSource:', error);
       this.isInitializing = false;
       this.emit('connection_status', false);
       this.handleReconnect();
@@ -234,11 +236,11 @@ class NotificationService {
       id: `test-${Date.now()}`,
       type: 'system_update',
       title: 'Test Notification',
-      message: 'This is a test notification',
+      message: 'This is a test notification to verify the notification system.',
       data: {},
       isRead: false,
-      userId: TokenService.decodeToken(TokenService.getAccessToken() || '')?.sub || '',
-      tenantId: TokenService.getTenantId() || '',
+      userId: 'test-user',
+      tenantId: 'test-tenant',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       deletedAt: null,
@@ -249,9 +251,8 @@ class NotificationService {
       metadata: null
     };
 
-    console.log('Simulating notification:', testNotification);
+    console.log('[NotificationService] Simulating notification:', testNotification);
     this.emit('notification', testNotification);
-    return testNotification;
   }
 
   private handleReconnect() {
@@ -277,19 +278,44 @@ class NotificationService {
     }, delay);
   }
 
-  public subscribe(event: string, callback: (data: any) => void) {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, new Set());
+  public subscribe(eventName: string, listener: (data: any) => void) {
+    console.log(`[NotificationService] Subscribing to ${eventName}`);
+    if (!this.listeners.has(eventName)) {
+      this.listeners.set(eventName, new Set());
     }
-    this.listeners.get(event)?.add(callback);
+    this.listeners.get(eventName)!.add(listener);
+    console.log(`[NotificationService] Now have ${this.listeners.get(eventName)!.size} listeners for ${eventName}`);
   }
 
-  public unsubscribe(event: string, callback: (data: any) => void) {
-    this.listeners.get(event)?.delete(callback);
+  public unsubscribe(eventName: string, listener: (data: any) => void) {
+    console.log(`[NotificationService] Unsubscribing from ${eventName}`);
+    const listeners = this.listeners.get(eventName);
+    if (listeners) {
+      const success = listeners.delete(listener);
+      console.log(`[NotificationService] Unsubscribe ${success ? 'successful' : 'failed'}, ${listeners.size} listeners remaining for ${eventName}`);
+    }
   }
 
-  private emit(event: string, data: any) {
-    this.listeners.get(event)?.forEach(callback => callback(data));
+  private emit(eventName: string, data: any) {
+    console.log(`[NotificationService] 📢 Emitting ${eventName}:`, data);
+    const listeners = this.listeners.get(eventName);
+    
+    if (listeners && listeners.size > 0) {
+      console.log(`[NotificationService] Found ${listeners.size} listeners for ${eventName}`);
+      let index = 1;
+      listeners.forEach((listener) => {
+        try {
+          console.log(`[NotificationService] Calling listener ${index}/${listeners.size} for ${eventName}`);
+          listener(data);
+          console.log(`[NotificationService] ✅ Listener ${index} executed successfully`);
+        } catch (error) {
+          console.error(`[NotificationService] ❌ Error in listener ${index} for ${eventName}:`, error);
+        }
+        index++;
+      });
+    } else {
+      console.warn(`[NotificationService] ⚠️ No listeners found for ${eventName}`);
+    }
   }
 
   public disconnect() {
@@ -319,7 +345,9 @@ class NotificationService {
   }
 
   public isConnected(): boolean {
-    return this.eventSource?.readyState === EventSourcePolyfill.OPEN;
+    const connected = this.eventSource?.readyState === EventSourcePolyfill.OPEN;
+    console.log('[NotificationService] Connection status check:', connected);
+    return connected;
   }
 }
 
@@ -335,7 +363,7 @@ export const getUnreadNotifications = async (): Promise<Notification[]> => {
 };
 
 export const markAsRead = async (id: string): Promise<void> => {
-  return AuthClient.post(`/notifications/${id}/read`);
+  return AuthClient.patch(`/notifications/${id}/read`);
 };
 
 export const deleteNotification = async (id: string): Promise<void> => {
@@ -343,5 +371,5 @@ export const deleteNotification = async (id: string): Promise<void> => {
 };
 
 export const clearAllNotifications = async (): Promise<void> => {
-  return AuthClient.post('/notifications/clear');
+  return AuthClient.delete('/notifications/');
 }; 

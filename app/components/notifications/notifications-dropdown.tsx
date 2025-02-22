@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,17 +22,27 @@ export function NotificationsDropdown() {
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
   const [open, setOpen] = useState(false);
+  const notificationsRef = useRef<Notification[]>([]);
+
+  // Update ref whenever notifications state changes
+  useEffect(() => {
+    notificationsRef.current = notifications;
+  }, [notifications]);
 
   const fetchNotifications = async () => {
+    console.log('[NotificationsDropdown] 🔄 Fetching notifications...');
     try {
       setLoading(true);
       const data = await getNotifications();
+      console.log('[NotificationsDropdown] 📥 Fetched notifications:', data);
       setNotifications(data);
+      notificationsRef.current = data;
       setUnreadCount(data.filter(n => !n.isRead).length);
     } catch (error) {
-      console.error('Failed to fetch notifications:', error);
+      console.error('[NotificationsDropdown] ❌ Failed to fetch notifications:', error);
       toast.error("Failed to fetch notifications");
       setNotifications([]);
+      notificationsRef.current = [];
       setUnreadCount(0);
     } finally {
       setLoading(false);
@@ -40,21 +50,37 @@ export function NotificationsDropdown() {
   };
 
   const handleNewNotification = (notification: Notification) => {
-    setNotifications(prev => {
-      // Check if notification already exists
-      if (prev.some(n => n.id === notification.id)) {
-        return prev;
-      }
-      // Add new notification at the beginning
-      const updated = [notification, ...prev];
-      setUnreadCount(updated.filter(n => !n.isRead).length);
-      
-      // Show toast notification
-      toast(notification.title, {
-        description: notification.message,
-      });
-      
-      return updated;
+    console.log('[NotificationsDropdown] 🔔 Processing new notification:', notification);
+    console.log('[NotificationsDropdown] Current notifications (from ref):', notificationsRef.current);
+    
+    // Check if notification already exists using ref
+    if (notificationsRef.current.some(n => n.id === notification.id)) {
+      console.log('[NotificationsDropdown] ⚠️ Notification already exists, skipping:', notification.id);
+      return;
+    }
+
+    // Add new notification at the beginning
+    const updated = [notification, ...notificationsRef.current];
+    console.log('[NotificationsDropdown] ✅ Updated notifications list:', updated);
+    
+    // Update state and ref
+    setNotifications(updated);
+    notificationsRef.current = updated;
+    
+    // Update unread count
+    const newUnreadCount = updated.filter(n => !n.isRead).length;
+    console.log('[NotificationsDropdown] 📊 New unread count:', newUnreadCount);
+    setUnreadCount(newUnreadCount);
+    
+    // Show toast notification
+    console.log('[NotificationsDropdown] 🔔 Showing toast notification');
+    toast.message(notification.title, {
+      description: notification.message,
+      duration: 5000,
+      action: notification.actionUrl ? {
+        label: "View",
+        onClick: () => window.location.href = notification.actionUrl!
+      } : undefined
     });
   };
 
@@ -81,51 +107,91 @@ export function NotificationsDropdown() {
     setUnreadCount(0);
   };
 
+  // Add test function
+  const handleTestNotification = () => {
+    console.log('[NotificationsDropdown] 🧪 Triggering test notification');
+    notificationService.testNotification();
+  };
+
   useEffect(() => {
-    console.log('NotificationsDropdown mounted');
+    console.log('[NotificationsDropdown] 🔄 Component mounted');
     
     // Initial fetch
     fetchNotifications();
 
+    // Subscribe to events
+    const notificationCallback = (notification: Notification) => {
+      console.log('[NotificationsDropdown] 📥 Notification event received:', notification);
+      console.log('[NotificationsDropdown] Current notifications state:', notificationsRef.current);
+      handleNewNotification(notification);
+    };
+
+    const readCallback = (notificationId: string) => {
+      console.log('[NotificationsDropdown] 👁️ Notification read event received:', notificationId);
+      handleNotificationRead(notificationId);
+    };
+
+    const deleteCallback = (notificationId: string) => {
+      console.log('[NotificationsDropdown] 🗑️ Notification deleted event received:', notificationId);
+      handleNotificationDeleted(notificationId);
+    };
+
+    const clearCallback = () => {
+      console.log('[NotificationsDropdown] 🧹 Notifications cleared event received');
+      handleNotificationsCleared();
+    };
+
+    const connectionCallback = (status: boolean) => {
+      console.log('[NotificationsDropdown] 🔌 Connection status changed:', status);
+      setConnected(status);
+      if (status) {
+        console.log('[NotificationsDropdown] Connection restored, fetching notifications...');
+        fetchNotifications();
+      }
+    };
+
+    console.log('[NotificationsDropdown] 🔌 Setting up event subscriptions...');
+    
+    // Log current listeners before subscribing
+    console.log('[NotificationsDropdown] Current notification listeners:', 
+      notificationService['listeners'].get('notification')?.size || 0);
+    
+    notificationService.subscribe('notification', notificationCallback);
+    
+    // Log listeners after subscribing
+    console.log('[NotificationsDropdown] Updated notification listeners:', 
+      notificationService['listeners'].get('notification')?.size || 0);
+
+    // Rest of the subscriptions...
+    notificationService.subscribe('notification_read', readCallback);
+    notificationService.subscribe('notification_deleted', deleteCallback);
+    notificationService.subscribe('notifications_cleared', clearCallback);
+    notificationService.subscribe('connection_status', connectionCallback);
+
     // Setup connection check interval
     const checkConnection = () => {
       const isConnected = notificationService.isConnected();
+      console.log('[NotificationsDropdown] 🔍 Connection check:', isConnected);
       if (isConnected !== connected) {
-        console.log('SSE connection status:', isConnected);
+        console.log('[NotificationsDropdown] Connection status mismatch, updating state...');
         setConnected(isConnected);
       }
     };
 
     // Check connection immediately and set up interval
     checkConnection();
-    const connectionInterval = setInterval(checkConnection, 30000); // Check every 30 seconds
-
-    // Subscribe to events
-    notificationService.subscribe('notification', handleNewNotification);
-    notificationService.subscribe('notification_read', handleNotificationRead);
-    notificationService.subscribe('notification_deleted', handleNotificationDeleted);
-    notificationService.subscribe('notifications_cleared', handleNotificationsCleared);
-    notificationService.subscribe('connection_status', (status: boolean) => {
-      console.log('SSE connection status changed:', status);
-      setConnected(status);
-      
-      // Refetch notifications when connection is restored
-      if (status) {
-        fetchNotifications();
-      }
-    });
+    const connectionInterval = setInterval(checkConnection, 30000);
 
     return () => {
-      console.log('NotificationsDropdown unmounting');
-      // Clear interval
+      console.log('[NotificationsDropdown] 🔚 Component unmounting, cleaning up...');
       clearInterval(connectionInterval);
       
-      // Cleanup subscriptions
-      notificationService.unsubscribe('notification', handleNewNotification);
-      notificationService.unsubscribe('notification_read', handleNotificationRead);
-      notificationService.unsubscribe('notification_deleted', handleNotificationDeleted);
-      notificationService.unsubscribe('notifications_cleared', handleNotificationsCleared);
-      notificationService.unsubscribe('connection_status', setConnected);
+      console.log('[NotificationsDropdown] Unsubscribing from events...');
+      notificationService.unsubscribe('notification', notificationCallback);
+      notificationService.unsubscribe('notification_read', readCallback);
+      notificationService.unsubscribe('notification_deleted', deleteCallback);
+      notificationService.unsubscribe('notifications_cleared', clearCallback);
+      notificationService.unsubscribe('connection_status', connectionCallback);
     };
   }, []);
 
@@ -169,12 +235,24 @@ export function NotificationsDropdown() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">
         <div className="flex items-center justify-between p-4">
-          <div className="text-sm font-medium">Notifications</div>
+          <div className="flex items-center gap-2">
+            <h4 className="font-semibold">Notifications</h4>
+            {process.env.NODE_ENV === 'development' && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleTestNotification}
+              >
+                Test
+              </Button>
+            )}
+          </div>
           {notifications.length > 0 && (
             <Button
               variant="ghost"
-              className="text-xs text-muted-foreground"
+              size="sm"
               onClick={handleClearAll}
+              disabled={loading}
             >
               Clear all
             </Button>

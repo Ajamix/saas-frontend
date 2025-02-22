@@ -259,7 +259,7 @@ export default function TenantDashboardPage() {
                     {user.isActive ? 'Active' : 'Inactive'}
                   </Badge>
                   <Badge variant="outline">
-                    {user.roles.length ? user.roles.join(', ') : 'No Role'}
+                    {user.roles.length ? user.roles[0].name : 'No Role'}
                   </Badge>
                 </div>
               </div>

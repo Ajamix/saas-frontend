@@ -19,7 +19,7 @@ export interface TenantDashboardOverview {
     isActive: boolean;
     isSuperAdmin: boolean;
     tenantId: string;
-    roles: string[];
+    roles: {name: string}[];
     hasSetupProfile: boolean;
   }>;
   roles: any[];

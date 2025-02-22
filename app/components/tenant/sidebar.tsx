@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -65,11 +68,15 @@ interface TenantSidebarProps {
 
 export function TenantSidebar({ isCollapsed, onCollapse }: TenantSidebarProps) {
   const pathname = usePathname();
+  const [authorizedRoutes, setAuthorizedRoutes] = useState<typeof routes>([]);
 
-  // Filter routes based on permissions
-  const authorizedRoutes = routes.filter(route => 
-    hasPermission(route.requiredPermission.resource, route.requiredPermission.action)
-  );
+  useEffect(() => {
+    // Filter routes based on permissions
+    const filteredRoutes = routes.filter(route => 
+      hasPermission(route.requiredPermission.resource, route.requiredPermission.action)
+    );
+    setAuthorizedRoutes(filteredRoutes);
+  }, []);
 
   return (
     <div className="relative h-full bg-[#111827] text-white">
@@ -99,7 +106,6 @@ export function TenantSidebar({ isCollapsed, onCollapse }: TenantSidebarProps) {
                   pathname === route.href ? "text-white bg-white/10" : "text-zinc-400",
                   isCollapsed ? "justify-center" : "justify-start"
                 )}
-                title={isCollapsed ? route.label : undefined}
               >
                 <div className={cn(
                   "flex items-center flex-1",

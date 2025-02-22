@@ -1,9 +1,8 @@
 import AuthClient from './auth-client';
-import { io, Socket } from 'socket.io-client';
 import TokenService from '@/app/lib/auth/tokens';
+import { EventSourcePolyfill } from 'event-source-polyfill';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:4000';
 
 export type NotificationType = 
   | 'subscription_change'
@@ -54,18 +53,38 @@ export interface NotificationsResponse {
   unreadCount: number;
 }
 
+type EventHandler = (event: MessageEvent) => void;
+
 class NotificationService {
   private static instance: NotificationService;
-  private socket: Socket | null = null;
+  private eventSource: EventSourcePolyfill | null = null;
   private listeners: Map<string, Set<(data: any) => void>> = new Map();
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
-  private reconnectDelay = 10000; // 10 seconds
+  private isInitializing = false;
   private reconnectTimer: NodeJS.Timeout | null = null;
+  private connectionCheckInterval: NodeJS.Timeout | null = null;
 
   private constructor() {
     if (typeof window !== 'undefined') {
-      this.initializeSocket();
+      // Delay initial connection to avoid immediate reconnection loops
+      setTimeout(() => {
+        this.initializeEventSource();
+      }, 1000);
+
+      // Set up connection check interval
+      this.connectionCheckInterval = setInterval(() => {
+        this.checkConnection();
+      }, 30000); // Check every 30 seconds
+    }
+  }
+
+  private checkConnection() {
+    if (!this.eventSource || this.eventSource.readyState === EventSourcePolyfill.CLOSED) {
+      if (!this.isInitializing && this.reconnectAttempts < this.maxReconnectAttempts) {
+        console.log('Connection check: Connection lost, attempting to reconnect...');
+        this.reconnect();
+      }
     }
   }
 
@@ -76,110 +95,120 @@ class NotificationService {
     return NotificationService.instance;
   }
 
-  private initializeSocket() {
-    if (this.socket?.connected) {
-      console.log('Socket already connected, skipping initialization');
+  private initializeEventSource() {
+    if (this.isInitializing) {
+      console.log('Already initializing EventSource, skipping...');
       return;
     }
 
     const token = TokenService.getAccessToken();
     if (!token) {
-      console.log('No token available, skipping socket initialization');
-      return;
-    }
-
-    const decodedToken = TokenService.decodeToken(token);
-    if (!decodedToken?.sub) {
-      console.log('No user ID in token, skipping socket initialization');
+      console.error('No access token available');
       return;
     }
 
     try {
-      if (this.socket) {
-        console.log('Cleaning up existing socket');
-        this.socket.removeAllListeners();
-        this.socket.disconnect();
+      this.isInitializing = true;
+
+      if (this.eventSource) {
+        console.log('Cleaning up existing EventSource');
+        this.eventSource.close();
+        this.eventSource = null;
       }
 
-      console.log('Initializing socket connection...');
-      this.socket = io(WS_URL, {
-        auth: { token },
-        transports: ['websocket'],
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: this.reconnectDelay,
-        reconnectionDelayMax: 20000,
-        timeout: 10000
+      console.log('Initializing EventSource connection...');
+      const eventSource = new EventSourcePolyfill(`${API_URL}/notifications/sse/subscribe`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        },
+        heartbeatTimeout: 60000, // Reduce to 1 minute
+        withCredentials: true
       });
 
-      // Log all incoming socket events in development
-      if (process.env.NODE_ENV === 'development') {
-        this.socket.onAny((event, ...args) => {
-          console.log('Socket event received:', event, args);
-        });
-      }
+      // Log the connection URL and headers for debugging
+      console.log('SSE Connection URL:', `${API_URL}/notifications/sse/subscribe`);
+      console.log('SSE Connection Headers:', {
+        'Authorization': 'Bearer [hidden]',
+        'Accept': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive'
+      });
 
-      this.socket.on('connect', () => {
-        console.log('Socket connected:', this.socket?.id);
-        
-        // Join user's room
-        const userId = decodedToken.sub;
-        this.socket?.emit('join', `user:${userId}`);
-        console.log('Joining room:', `user:${userId}`);
-        
+      // Store event source only after successful setup
+      this.eventSource = eventSource;
+
+      eventSource.onopen = () => {
+        console.log('EventSource connected successfully');
+        this.isInitializing = false;
         this.reconnectAttempts = 0;
         if (this.reconnectTimer) {
           clearTimeout(this.reconnectTimer);
           this.reconnectTimer = null;
         }
         this.emit('connection_status', true);
-      });
+      };
 
-      // Add handler for successful room join
-      this.socket.on('joined', (room: string) => {
-        console.log('Successfully joined room:', room);
-      });
-
-      this.socket.on('connect_error', (error) => {
-        console.error('Socket connection error:', error);
-        this.emit('connection_status', false);
-        this.handleReconnect();
-      });
-
-      this.socket.on('disconnect', (reason) => {
-        console.log('Socket disconnected:', reason);
-        this.emit('connection_status', false);
-        if (reason === 'io server disconnect' || reason === 'transport close') {
-          this.handleReconnect();
+      eventSource.onerror = (error) => {
+        console.error('EventSource error:', error);
+        // Log more detailed error information
+        if (error instanceof MessageEvent) {
+          console.error('Error details:', {
+            type: error.type,
+            data: error.data,
+            lastEventId: error.lastEventId,
+            origin: error.origin,
+            readyState: eventSource.readyState
+          });
         }
-      });
-
-      this.socket.on('notification', (data: Notification) => {
-        console.log('Received notification:', data);
-        if (!this.validateNotification(data)) {
-          console.warn('Received invalid notification format:', data);
-          return;
+        
+        this.isInitializing = false;
+        
+        if (eventSource.readyState === EventSourcePolyfill.CLOSED) {
+          console.log('Connection closed, current state:', {
+            readyState: eventSource.readyState,
+            reconnectAttempts: this.reconnectAttempts,
+            isInitializing: this.isInitializing
+          });
+          this.emit('connection_status', false);
+          
+          // Add a small delay before attempting reconnection
+          setTimeout(() => {
+            this.handleReconnect();
+          }, 1000);
         }
-        this.emit('notification', data);
-      });
+      };
 
-      this.socket.on('notification_read', (data) => {
-        console.log('Notification read event:', data);
-        this.emit('notification_read', data);
-      });
+      const handleEvent = (eventName: string): EventListenerOrEventListenerObject => (event: Event) => {
+        if (event instanceof MessageEvent) {
+          try {
+            const data = JSON.parse(event.data);
+            console.log(`Received ${eventName}:`, data);
+            
+            if (eventName === 'notification' && !this.validateNotification(data)) {
+              console.warn('Received invalid notification format:', data);
+              return;
+            }
+            
+            this.emit(eventName, data);
+          } catch (error) {
+            console.error(`Error parsing ${eventName} data:`, error);
+          }
+        }
+      };
 
-      this.socket.on('notification_deleted', (data) => {
-        console.log('Notification deleted event:', data);
-        this.emit('notification_deleted', data);
-      });
-
-      this.socket.on('notifications_cleared', (data) => {
-        console.log('Notifications cleared event:', data);
-        this.emit('notifications_cleared', data);
-      });
+      // Set up event listeners with type assertions
+      (eventSource as any).addEventListener('notification', handleEvent('notification'));
+      (eventSource as any).addEventListener('notification_read', handleEvent('notification_read'));
+      (eventSource as any).addEventListener('notification_deleted', handleEvent('notification_deleted'));
+      (eventSource as any).addEventListener('notifications_cleared', handleEvent('notifications_cleared'));
+      (eventSource as any).addEventListener('broadcast', handleEvent('broadcast'));
 
     } catch (error) {
-      console.error('Failed to initialize socket:', error);
+      console.error('Failed to initialize EventSource:', error);
+      this.isInitializing = false;
       this.emit('connection_status', false);
       this.handleReconnect();
     }
@@ -230,16 +259,22 @@ class NotificationService {
       clearTimeout(this.reconnectTimer);
     }
 
-    this.reconnectAttempts++;
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      console.log(`Scheduling reconnect attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${this.reconnectDelay}ms`);
-      this.reconnectTimer = setTimeout(() => {
-        console.log('Attempting to reconnect...');
-        this.initializeSocket();
-      }, this.reconnectDelay);
-    } else {
-      console.log('Max reconnection attempts reached');
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.log('Max reconnection attempts reached, stopping reconnection');
+      this.disconnect();
+      return;
     }
+
+    this.reconnectAttempts++;
+    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
+
+    console.log(`Scheduling reconnect attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`);
+    
+    this.reconnectTimer = setTimeout(() => {
+      if (!this.isInitializing) {
+        this.initializeEventSource();
+      }
+    }, delay);
   }
 
   public subscribe(event: string, callback: (data: any) => void) {
@@ -258,29 +293,37 @@ class NotificationService {
   }
 
   public disconnect() {
-    console.log('Disconnecting socket...');
+    console.log('Disconnecting EventSource...');
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    if (this.socket) {
-      this.socket.removeAllListeners();
-      this.socket.disconnect();
-      this.socket = null;
+    if (this.connectionCheckInterval) {
+      clearInterval(this.connectionCheckInterval);
+      this.connectionCheckInterval = null;
     }
+    if (this.eventSource) {
+      this.eventSource.close();
+      this.eventSource = null;
+    }
+    this.isInitializing = false;
     this.reconnectAttempts = 0;
+    this.emit('connection_status', false);
   }
 
   public reconnect() {
-    console.log('Reconnecting socket...');
+    console.log('Manual reconnect requested');
+    this.reconnectAttempts = 0;
     this.disconnect();
-    this.initializeSocket();
+    this.initializeEventSource();
   }
 
   public isConnected(): boolean {
-    return this.socket?.connected ?? false;
+    return this.eventSource?.readyState === EventSourcePolyfill.OPEN;
   }
 }
+
+export const notificationService = NotificationService.getInstance();
 
 // REST API functions
 export const getNotifications = async (): Promise<Notification[]> => {
@@ -292,7 +335,7 @@ export const getUnreadNotifications = async (): Promise<Notification[]> => {
 };
 
 export const markAsRead = async (id: string): Promise<void> => {
-  return AuthClient.patch(`/notifications/${id}/read`);
+  return AuthClient.post(`/notifications/${id}/read`);
 };
 
 export const deleteNotification = async (id: string): Promise<void> => {
@@ -300,10 +343,5 @@ export const deleteNotification = async (id: string): Promise<void> => {
 };
 
 export const clearAllNotifications = async (): Promise<void> => {
-  return AuthClient.delete('/notifications');
-};
-
-// Export singleton instance
-export const notificationService = NotificationService.getInstance();
-
-export default notificationService; 
+  return AuthClient.post('/notifications/clear');
+}; 

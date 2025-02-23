@@ -8,6 +8,7 @@ export interface PageData {
   title: string;
   description: string;
   blocks: Block[];
+  isDefault?: boolean;
 }
 
 export interface Template {

@@ -61,7 +61,8 @@
             "description": "Best for large organizations."
           }
         ],
-        "color": "#10B981"
+        "color": "#10B981",
+        "showPlans": true
       }
     },
     {
@@ -74,6 +75,17 @@
         "buttonLink": "/auth/register",
         "color": "#FBBF24"
       }
+    },
+    {
+      "id": "1740338223293",
+      "type": "pricing",
+      "content": {
+        "title": "Pricing Plans",
+        "subtitle": "Choose the perfect plan for you",
+        "showPlans": true,
+        "color": "#10B981"
+      }
     }
-  ]
+  ],
+  "isDefault": true
 }

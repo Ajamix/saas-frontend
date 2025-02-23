@@ -17,10 +17,10 @@ class AuthClient {
       };
     } catch (error) {
       // Only redirect if we're in the browser
-      if (typeof window !== 'undefined') {
-        TokenService.clearTokens();
-        window.location.href = '/auth/login';
-      }
+      // if (typeof window !== 'undefined') {
+      //   TokenService.clearTokens();
+      //   window.location.href = '/auth/login';
+      // }
       throw error;
     }
   }
@@ -91,6 +91,16 @@ class AuthClient {
     }
   }
 
+  static async getPublic(endpoint: string) {
+    try {
+
+      const response = await fetch(`${API_URL}${endpoint}`);
+      return this.handleResponse(response);
+    } catch (error) {
+      console.error('GET request failed:', error);
+      throw error;
+    }
+  }
   static async post(endpoint: string, data?: any) {
     try {
       const headers = await this.getHeaders();

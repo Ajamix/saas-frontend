@@ -6,7 +6,7 @@ import { getSubscriptionPlansForTenant, type SubscriptionPlan } from "@/app/api/
 
 interface Block {
   id: string;
-  type: 'hero' | 'features' | 'pricing' | 'cta' | 'custom';
+  type: "hero" | "features" | "pricing" | "cta" | "custom";
   content: any;
 }
 
@@ -27,9 +27,9 @@ export function PagePreview({ data }: PagePreviewProps) {
     const fetchPlans = async () => {
       try {
         const response = await getSubscriptionPlansForTenant();
-        setPlans(response.filter(plan => plan.isActive));
+        setPlans(response.filter((plan) => plan.isActive));
       } catch (error) {
-        console.error('Failed to fetch plans:', error);
+        console.error("Failed to fetch plans:", error);
       }
     };
 
@@ -129,13 +129,53 @@ export function PagePreview({ data }: PagePreviewProps) {
 
       case 'custom':
         return (
-          <div dangerouslySetInnerHTML={{ __html: block.content.html }} />
+          <div id={`custom-block-${block.id}`}>
+            <style>{block.content.css}</style>
+            <div className="custom-block-content" dangerouslySetInnerHTML={{ __html: block.content.html }} />
+          </div>
         );
 
       default:
         return null;
     }
   };
+
+  useEffect(() => {
+    // Remove old injected scripts to prevent duplicate execution
+    document.querySelectorAll(".injected-script").forEach((script) => script.remove());
+
+    // Inject JavaScript scripts properly
+    data.blocks.forEach((block) => {
+      if (block.type === "custom" && block.content.javascript) {
+        try {
+          const container = document.getElementById(`custom-block-${block.id}`);
+          if (!container) return;
+
+          // Remove previous script if it exists
+          const existingScript = document.getElementById(`custom-script-${block.id}`);
+          if (existingScript) {
+            existingScript.remove();
+          }
+
+          // Create a new script tag
+          const script = document.createElement("script");
+          script.id = `custom-script-${block.id}`;
+          script.textContent = block.content.javascript;
+          script.classList.add("injected-script");
+
+          // Append to document body
+          document.body.appendChild(script);
+        } catch (error) {
+          console.error(`Error executing custom JS for block ${block.id}:`, error);
+        }
+      }
+    });
+
+    return () => {
+      // Cleanup injected scripts on component unmount
+      document.querySelectorAll(".injected-script").forEach((script) => script.remove());
+    };
+  }, [data]); // Runs when `data` changes
 
   return (
     <div className="min-h-screen bg-white">
@@ -144,4 +184,4 @@ export function PagePreview({ data }: PagePreviewProps) {
       ))}
     </div>
   );
-} 
+}

@@ -9,6 +9,7 @@ export async function middleware(request: NextRequest) {
     '/auth-admin/login',
     '/_next',
     '/api',
+    '/'
   ]
 
   if (publicPaths.some(path => request.nextUrl.pathname.startsWith(path))) {

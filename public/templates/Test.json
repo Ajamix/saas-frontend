@@ -3,37 +3,15 @@
   "description": "A new template",
   "blocks": [
     {
-      "id": "1",
-      "type": "hero",
+      "id": "1740323796259",
+      "type": "custom",
       "content": {
-        "title": "Welcome to Our Service",
-        "subtitle": "Your one-stop solution for all your needs.",
-        "ctaText": "Get Started",
-        "ctaLink": "/auth/register",
-        "backgroundImage": "",
-        "color": "#f7021b"
-      }
-    },
-    {
-      "id": "2",
-      "type": "features",
-      "content": {
-        "title": "Key Features",
-        "features": [
-          {
-            "title": "Unlimited Users",
-            "description": "Add as many users as you want.",
-            "icon": "users"
-          },
-          {
-            "title": "24/7 Support",
-            "description": "We are here to help you anytime.",
-            "icon": "support"
-          }
-        ],
-        "color": "#ffffff"
+        "html": "<div class=\"test-container\">\n  <button class=\"test-button\">Click me!</button>\n  <div class=\"result\">Not clicked yet</div>\n</div>",
+        "color": "#4F46E5",
+        "css": ".test-container {\n  padding: 20px;\n  border: 2px solid #ccc;\n  border-radius: 8px;\n  margin: 10px;\n}\n\n.test-button {\n  background: #4F46E5;\n  color: white;\n  padding: 10px 20px;\n  border: none;\n  border-radius: 4px;\n  cursor: pointer;\n}\n\n.result {\n  margin-top: 10px;\n  padding: 10px;\n  background: #f0f0f0;\n}",
+        "javascript": "console.log('Script starting...');\nconst button = document.querySelector('.test-button');\nconst result = document.querySelector('.result');\nconsole.log('Found elements:', button, result);\n\nif (button && result) {\n  // Direct event listener attachment\n  button.onclick = function(event) {\n    console.log('Button clicked!', event);\n    result.textContent = 'Clicked at: ' + new Date().toLocaleTimeString();\n  };\n}"
       }
     }
   ],
-  "isDefault": true
+  "isDefault": false
 }

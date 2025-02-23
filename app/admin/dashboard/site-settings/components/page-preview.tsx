@@ -45,7 +45,7 @@ export function PagePreview({ data }: PagePreviewProps) {
             style={{
               backgroundImage: block.content.backgroundImage
                 ? `url(${block.content.backgroundImage})`
-                : 'linear-gradient(to right, #4F46E5, #7C3AED)'
+                : `linear-gradient(to right, ${block.content.color}, #7C3AED)`
             }}
           >
             <div className="absolute inset-0 bg-black/50" />
@@ -61,7 +61,7 @@ export function PagePreview({ data }: PagePreviewProps) {
 
       case 'features':
         return (
-          <section className="py-24 px-8 bg-white">
+          <section className="py-24 px-8" style={{ backgroundColor: block.content.color }}>
             <div className="max-w-5xl mx-auto">
               <h2 className="text-3xl font-bold text-center mb-12" >{block.content.title}</h2>
               <div className="grid md:grid-cols-3 gap-8">
@@ -82,7 +82,7 @@ export function PagePreview({ data }: PagePreviewProps) {
 
       case 'pricing':
         return (
-          <section className="py-24 px-8 bg-gray-50">
+          <section className="py-24 px-8 bg-gray-50" style={{ backgroundColor: block.content.color }}>
             <div className="max-w-5xl mx-auto">
               <h2 className="text-3xl font-bold text-center mb-4" >{block.content.title}</h2>
               <p className="text-center text-muted-foreground mb-12" >{block.content.subtitle}</p>
@@ -116,7 +116,7 @@ export function PagePreview({ data }: PagePreviewProps) {
 
       case 'cta':
         return (
-          <section className="py-24 px-8 bg-primary text-white">
+          <section className="py-24 px-8 text-white" style={{ backgroundColor: block.content.color }}>
             <div className="max-w-3xl mx-auto text-center">
               <h2 className="text-3xl font-bold mb-4" >{block.content.title}</h2>
               <p className="text-xl mb-8" >{block.content.description}</p>

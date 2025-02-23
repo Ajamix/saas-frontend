@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { PageData } from '../admin/dashboard/site-settings/components/page-builder';
 import { PagePreview } from '../admin/dashboard/site-settings/components/page-preview';
+import { PageData } from '../admin/dashboard/site-settings/components/types';
 
 export function DynamicLandingPage() {
   const [pageData, setPageData] = useState<PageData | null>(null);

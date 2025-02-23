@@ -1,0 +1,39 @@
+{
+  "title": "New Template",
+  "description": "A new template",
+  "blocks": [
+    {
+      "id": "1",
+      "type": "hero",
+      "content": {
+        "title": "Welcome to Our Service",
+        "subtitle": "Your one-stop solution for all your needs.",
+        "ctaText": "Get Started",
+        "ctaLink": "/auth/register",
+        "backgroundImage": "",
+        "color": "#f7021b"
+      }
+    },
+    {
+      "id": "2",
+      "type": "features",
+      "content": {
+        "title": "Key Features",
+        "features": [
+          {
+            "title": "Unlimited Users",
+            "description": "Add as many users as you want.",
+            "icon": "users"
+          },
+          {
+            "title": "24/7 Support",
+            "description": "We are here to help you anytime.",
+            "icon": "support"
+          }
+        ],
+        "color": "#ffffff"
+      }
+    }
+  ],
+  "isDefault": true
+}

@@ -78,64 +78,75 @@ class TokenService {
 
   static async refreshTokens(): Promise<TokenResponse> {
     if (this.refreshPromise) {
-      return this.refreshPromise;
+      return this.refreshPromise; // If a refresh is in progress, return the existing Promise
     }
-
-    const refreshToken = this.getRefreshToken(); // Ensure this method exists
+  
+    const refreshToken = this.getRefreshToken();
     if (!refreshToken) {
       throw new Error('No refresh token available');
     }
-
-    this.refreshPromise = (async () => {
+  
+    // Store the promise in a local variable before assigning it to prevent cycles
+    const refreshPromise = (async () => {
       try {
         const response = await fetch(`${API_URL}/auth/refresh`, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
             'refresh-token': refreshToken
-           },
+          },
         });
-
+  
         if (!response.ok) {
           throw new Error(`Failed to refresh token: ${response.status}`);
         }
-
+  
         const tokens = await response.json();
-        this.setTokens(tokens); // Ensure this method exists
+        this.setTokens(tokens);
         return tokens;
       } catch (error) {
         console.error('Token refresh failed:', error);
-        throw error;
+        // Only clear tokens on 401 (Unauthorized) or 403 (Forbidden)
+        if (error instanceof Response && (error.status === 401 || error.status === 403)) {
+          this.clearTokens();
+        }
+  
+        throw new Error('Token refresh failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
       } finally {
-        // Store the resolved token before clearing the promise
-        const resolvedPromise = this.refreshPromise;
-        this.refreshPromise = null;
-        return resolvedPromise; // Prevent multiple refreshes on race conditions
+        this.refreshPromise = null; // Ensure future requests create a new Promise
       }
     })();
-
-    return this.refreshPromise;
+  
+    this.refreshPromise = refreshPromise;
+    return refreshPromise;
   }
-
+  
+  
   static async getValidAccessToken(): Promise<string | null> {
     const accessToken = this.getAccessToken();
     
-    // If we have a valid access token, return it
+    // If token is valid, return it
     if (this.isTokenValid(accessToken)) {
       return accessToken;
     }
-
+  
     try {
-      // Try to refresh the token
+      // Attempt to refresh tokens
       const tokens = await this.refreshTokens();
       return tokens.accessToken;
     } catch (error) {
       console.error('Failed to get valid access token:', error);
-      this.clearTokens();
+  
+      // Only clear tokens if refreshToken is explicitly missing (not due to fetch failure)
+      if (!this.getRefreshToken()) {
+        this.clearTokens();
+      }
+  
       return null;
     }
   }
-
+  
+  
   static isAuthenticated(): boolean {
     if (!isClient) return false;
     const accessToken = this.getAccessToken();

@@ -50,8 +50,8 @@ export function PagePreview({ data }: PagePreviewProps) {
           >
             <div className="absolute inset-0 bg-black/50" />
             <div className="relative z-10 max-w-5xl mx-auto text-center">
-              <h1 className="text-5xl font-bold mb-6">{block.content.title}</h1>
-              <p className="text-xl mb-8">{block.content.subtitle}</p>
+              <h1 className="text-5xl font-bold mb-6" contentEditable>{block.content.title}</h1>
+              <p className="text-xl mb-8" contentEditable>{block.content.subtitle}</p>
               <Button size="lg" asChild>
                 <a href={block.content.ctaLink}>{block.content.ctaText}</a>
               </Button>
@@ -63,9 +63,7 @@ export function PagePreview({ data }: PagePreviewProps) {
         return (
           <section className="py-24 px-8 bg-white">
             <div className="max-w-5xl mx-auto">
-              <h2 className="text-3xl font-bold text-center mb-12">
-                {block.content.title}
-              </h2>
+              <h2 className="text-3xl font-bold text-center mb-12" contentEditable>{block.content.title}</h2>
               <div className="grid md:grid-cols-3 gap-8">
                 {block.content.features.map((feature: any, index: number) => (
                   <div key={index} className="text-center">
@@ -73,8 +71,8 @@ export function PagePreview({ data }: PagePreviewProps) {
                       {/* You can add proper icon rendering here */}
                       <span className="text-primary">{feature.icon}</span>
                     </div>
-                    <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                    <p className="text-muted-foreground">{feature.description}</p>
+                    <h3 className="text-xl font-semibold mb-2" contentEditable>{feature.title}</h3>
+                    <p className="text-muted-foreground" contentEditable>{feature.description}</p>
                   </div>
                 ))}
               </div>
@@ -86,23 +84,14 @@ export function PagePreview({ data }: PagePreviewProps) {
         return (
           <section className="py-24 px-8 bg-gray-50">
             <div className="max-w-5xl mx-auto">
-              <h2 className="text-3xl font-bold text-center mb-4">
-                {block.content.title}
-              </h2>
-              <p className="text-center text-muted-foreground mb-12">
-                {block.content.subtitle}
-              </p>
+              <h2 className="text-3xl font-bold text-center mb-4" contentEditable>{block.content.title}</h2>
+              <p className="text-center text-muted-foreground mb-12" contentEditable>{block.content.subtitle}</p>
               {block.content.showPlans && (
                 <div className="grid md:grid-cols-3 gap-8">
                   {plans.map((plan) => (
-                    <div
-                      key={plan.id}
-                      className="bg-white rounded-lg shadow-lg p-8"
-                    >
-                      <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
-                      <p className="text-muted-foreground mb-4">
-                        {plan.description}
-                      </p>
+                    <div key={plan.id} className="bg-white rounded-lg shadow-lg p-8">
+                      <h3 className="text-xl font-bold mb-2" contentEditable>{plan.name}</h3>
+                      <p className="text-muted-foreground mb-4" contentEditable>{plan.description}</p>
                       <div className="text-3xl font-bold mb-6">
                         ${plan.price}/{plan.interval}
                       </div>
@@ -110,7 +99,7 @@ export function PagePreview({ data }: PagePreviewProps) {
                         {plan.features.map((feature, index) => (
                           <li key={index} className="flex items-center">
                             <span className="text-green-500 mr-2">✓</span>
-                            {feature}
+                            <span contentEditable>{feature}</span>
                           </li>
                         ))}
                       </ul>
@@ -129,13 +118,9 @@ export function PagePreview({ data }: PagePreviewProps) {
         return (
           <section className="py-24 px-8 bg-primary text-white">
             <div className="max-w-3xl mx-auto text-center">
-              <h2 className="text-3xl font-bold mb-4">{block.content.title}</h2>
-              <p className="text-xl mb-8">{block.content.description}</p>
-              <Button
-                size="lg"
-                variant="secondary"
-                asChild
-              >
+              <h2 className="text-3xl font-bold mb-4" contentEditable>{block.content.title}</h2>
+              <p className="text-xl mb-8" contentEditable>{block.content.description}</p>
+              <Button size="lg" variant="secondary" asChild>
                 <a href={block.content.buttonLink}>{block.content.buttonText}</a>
               </Button>
             </div>

@@ -1,11 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { toast, Toaster } from 'sonner';
 import { 
   LayoutGrid, 
   Plus, 
@@ -13,7 +18,14 @@ import {
   Trash2, 
   Eye,
   Settings,
-  Save
+  Save,
+  Download,
+  Upload,
+  Star,
+  Palette,
+  Edit,
+  Copy,
+  MoreVertical
 } from "lucide-react";
 import { HeroEditor } from "./block-editors/hero-editor";
 import { FeaturesEditor } from "./block-editors/features-editor";
@@ -21,6 +33,7 @@ import { PricingEditor } from "./block-editors/pricing-editor";
 import { CTAEditor } from "./block-editors/cta-editor";
 import { CustomEditor } from "./block-editors/custom-editor";
 import { PagePreview } from "./page-preview";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface Block {
   id: string;
@@ -28,7 +41,7 @@ interface Block {
   content: any;
 }
 
-interface PageData {
+export interface PageData {
   title: string;
   description: string;
   blocks: Block[];
@@ -106,6 +119,82 @@ export function PageBuilder() {
     blocks: defaultBlocks
   });
   const [previewMode, setPreviewMode] = useState(false);
+  const [templates, setTemplates] = useState<Array<{ name: string, data: PageData }>>([]);
+  const [templateName, setTemplateName] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<{ name: string, data: PageData } | null>(null);
+  const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
+  const [showPageContent, setShowPageContent] = useState(false);
+
+  useEffect(() => {
+    loadTemplates();
+  }, []);
+
+  const loadTemplates = async () => {
+    try {
+      const response = await fetch('/api/site-templates');
+      const data = await response.json();
+      setTemplates(data);
+      if (data.length > 0) {
+        setSelectedTemplate(data[0]); // Set the first template as selected
+      }
+    } catch (error) {
+      console.error('Failed to load templates:', error);
+    }
+  };
+
+  const saveAsTemplate = async () => {
+    if (!templateName) {
+      toast.error('Please enter a template name');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/site-templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: templateName,
+          data: pageData
+        })
+      });
+      const result = await response.json();
+      console.log('Save Template Response:', result);
+      await loadTemplates();
+      setTemplateName("");
+      toast.success('Template saved successfully!');
+    } catch (error) {
+      console.error('Failed to save template:', error);
+      toast.error('Failed to save template');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const setAsDefault = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/site-templates', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pageData)
+      });
+      const result = await response.json();
+      console.log('Set Default Template Response:', result);
+      toast.success('Set as default template successfully!');
+    } catch (error) {
+      console.error('Failed to set default template:', error);
+      toast.error('Failed to set default template');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const applyTemplate = (template: { name: string; data: PageData }) => {
+    setPageData(template.data);
+    setSelectedTemplate(template);
+  };
 
   const addBlock = (type: Block['type']) => {
     const newBlock: Block = {
@@ -205,7 +294,41 @@ export function PageBuilder() {
     // Here we would typically save to localStorage or export the configuration
     console.log('Saving page data:', pageData);
     // For now, just show a success message
-    alert('Page configuration saved!');
+    toast.success('Page configuration saved!');
+  };
+
+  const deleteTemplate = async (name: string) => {
+    try {
+      await fetch(`/api/site-templates/${encodeURIComponent(name)}`, {
+        method: 'DELETE'
+      });
+      await loadTemplates();
+      toast.success('Template deleted successfully!');
+    } catch (error) {
+      console.error('Failed to delete template:', error);
+      toast.error('Failed to delete template');
+    }
+  };
+
+  const duplicateTemplate = async (template: { name: string, data: PageData }) => {
+    const newName = `${template.name} (Copy)`;
+    try {
+      await fetch('/api/site-templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newName,
+          data: template.data
+        })
+      });
+      await loadTemplates();
+    } catch (error) {
+      console.error('Failed to duplicate template:', error);
+    }
+  };
+
+  const handleCreateTemplateClick = () => {
+    setShowPageContent(true);
   };
 
   if (previewMode) {
@@ -214,178 +337,168 @@ export function PageBuilder() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold">Page Preview</h2>
-            <p className="text-muted-foreground">
-              Preview how your page will look
-            </p>
+            <p className="text-muted-foreground">Preview how your page will look</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setPreviewMode(false)}
-            >
-              <Eye className="mr-2 h-4 w-4" />
-              Edit Mode
-            </Button>
-          </div>
+          <Button variant="outline" onClick={() => setPreviewMode(false)}>
+            <Edit className="mr-2 h-4 w-4" />
+            Edit Mode
+          </Button>
         </div>
-
-        <div className="border rounded-lg overflow-hidden">
-          <PagePreview data={pageData} />
-        </div>
+        <Card>
+          <CardContent className="p-0">
+            <PagePreview data={pageData} />
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Page Builder</h2>
-          <p className="text-muted-foreground">
-            Drag and drop blocks to build your page
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setPreviewMode(!previewMode)}
-          >
-            <Eye className="mr-2 h-4 w-4" />
-            {previewMode ? "Edit Mode" : "Preview"}
-          </Button>
-          <Button onClick={handleSave}>
-            <Save className="mr-2 h-4 w-4" />
-            Save Changes
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-12 gap-6">
-        {/* Sidebar with available blocks */}
-        <div className="col-span-3">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <LayoutGrid className="mr-2 h-4 w-4" />
-                Available Blocks
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => addBlock('hero')}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Hero Section
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => addBlock('features')}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Features
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => addBlock('pricing')}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Pricing
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => addBlock('cta')}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Call to Action
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => addBlock('custom')}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Custom HTML
-              </Button>
-            </CardContent>
-          </Card>
+    <>
+      <Toaster />
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Page Builder</h2>
+            <p className="text-muted-foreground">Design and manage your landing page</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleCreateTemplateClick}>Create Template</Button>
+            <Button variant="outline" onClick={() => setPreviewMode(true)}>
+              <Eye className="mr-2 h-4 w-4" />
+              Preview
+            </Button>
+          </div>
         </div>
 
-        {/* Main content area */}
-        <div className="col-span-9">
-          <DragDropContext onDragEnd={handleDragEnd}>
-            <Droppable droppableId="blocks">
-              {(provided) => (
-                <div
-                  {...provided.droppableProps}
-                  ref={provided.innerRef}
-                  className="space-y-4"
-                >
-                  {pageData.blocks.map((block, index) => (
-                    <Draggable
-                      key={block.id}
-                      draggableId={block.id}
-                      index={index}
-                    >
-                      {(provided) => (
-                        <div
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          className="relative"
-                        >
-                          <Card>
-                            <CardHeader className="flex flex-row items-center justify-between">
-                              <div
-                                {...provided.dragHandleProps}
-                                className="flex items-center"
-                              >
-                                <GripVertical className="mr-2 h-4 w-4" />
-                                <CardTitle>{block.type}</CardTitle>
+        {showPageContent && (
+          <div className="col-span-9">
+            <Card>
+              <CardHeader>
+                <CardTitle>Page Content</CardTitle>
+                <CardDescription>Drag and drop blocks to rearrange them</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DragDropContext onDragEnd={handleDragEnd}>
+                  <Droppable droppableId="blocks">
+                    {(provided) => (
+                      <div {...provided.droppableProps} ref={provided.innerRef} className="border border-dashed border-gray-300 p-4 rounded-md">
+                        {pageData.blocks.length === 0 ? (
+                          <p className="text-center text-muted-foreground">No blocks added yet. Click "Add Blocks" to get started.</p>
+                        ) : pageData.blocks.map((block, index) => (
+                          <Draggable key={block.id} draggableId={block.id} index={index}>
+                            {(provided) => (
+                              <div ref={provided.innerRef} {...provided.draggableProps} className="relative mb-2">
+                                <Card>
+                                  <CardHeader className="flex flex-row items-center justify-between">
+                                    <div {...provided.dragHandleProps} className="flex items-center">
+                                      <GripVertical className="mr-2 h-4 w-4" />
+                                      <CardTitle className="capitalize">{block.type}</CardTitle>
+                                    </div>
+                                    <Button variant="ghost" size="icon" onClick={() => removeBlock(block.id)}>
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </CardHeader>
+                                  <CardContent>
+                                    <BlockEditor 
+                                      block={block} 
+                                      onChange={(content) => updateBlockContent(block.id, content)} 
+                                    />
+                                  </CardContent>
+                                </Card>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => {/* Open block settings */}}
-                                >
-                                  <Settings className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => removeBlock(block.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </CardHeader>
-                            <CardContent>
-                              <Input
-                                type="color"
-                                value={block.content.color}
-                                onChange={(e) => updateBlockColor(block.id, e.target.value)}
-                              />
-                              <BlockEditor 
-                                block={block} 
-                                onChange={(content) => updateBlockContent(block.id, content)} 
-                              />
-                            </CardContent>
-                          </Card>
-                        </div>
-                      )}
-                    </Draggable>
-                  ))}
-                  {provided.placeholder}
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </DragDropContext>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Templates</CardTitle>
+            <CardDescription>Save and manage your templates</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Template name"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+              />
+              <Button
+                variant="outline"
+                onClick={saveAsTemplate}
+                disabled={isLoading || !templateName}
+              >
+                <Save className="h-4 w-4" />
+              </Button>
+            </div>
+            <Separator />
+            {templates.map((template) => (
+              <div key={template.name} className="flex items-center justify-between p-2 border rounded hover:bg-accent">
+                <span className="truncate">{template.name}</span>
+                <div className="flex items-center gap-1">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => applyTemplate(template)}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Apply
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setAsDefault()}>
+                        <Star className="mr-2 h-4 w-4" />
+                        Set as Default
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => duplicateTemplate(template)}>
+                        <Copy className="mr-2 h-4 w-4" />
+                        Duplicate
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive" onClick={() => deleteTemplate(template.name)}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-              )}
-            </Droppable>
-          </DragDropContext>
-        </div>
+              </div>
+            ))}
+            {templates.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">No templates saved yet</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Add Blocks</CardTitle>
+            <CardDescription>Choose blocks to add to your page</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {['hero', 'features', 'pricing', 'cta', 'custom'].map((type) => (
+              <Button
+                key={type}
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => addBlock(type as Block['type'])}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </Button>
+            ))}
+          </CardContent>
+        </Card>
       </div>
-    </div>
+    </>
   );
 } 

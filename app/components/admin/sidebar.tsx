@@ -49,6 +49,12 @@ const routes = [
     icon: Settings,
     href: '/admin/dashboard/global-settings',
     color: "text-orange-500"
+  },
+  {
+    label: 'Site Settings',
+    icon: Settings,
+    href: '/admin/dashboard/site-settings',
+    color: "text-purple-500"
   }
 ];
 

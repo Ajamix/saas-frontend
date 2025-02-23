@@ -104,7 +104,10 @@ export const updateNotificationSettings = async (id: string, data: NotificationS
 
 // Update payment settings
 export const updatePaymentSettings = async (id: string, data: PaymentSettings): Promise<GlobalSettings> => {
-  return AuthClient.patch(`/global-settings/${id}`, { paymentSettings: data });
+  // Send only paymentSettings to ensure it is updated
+  return AuthClient.patch(`/global-settings/${id}`, { 
+    paymentSettings: data 
+  });
 };
 
 // Update system settings

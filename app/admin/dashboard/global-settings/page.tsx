@@ -165,27 +165,53 @@ export default function GlobalSettingsPage() {
 
   const handlePaymentSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!settings) return;
+
+    if (!settings) {
+      console.error('No settings object available');
+      toast.error("Settings not loaded");
+      return;
+    }
 
     setSaving(true);
     try {
       const formData = new FormData(e.currentTarget);
+      
+      // Log the raw form data
+      console.log('Raw form data:', Object.fromEntries(formData.entries()));
+
       const paymentData: PaymentSettings = {
         stripeEnabled: formData.get('stripeEnabled') === 'on',
-        stripePublicKey: formData.get('stripePublicKey') as string,
-        stripeSecretKey: formData.get('stripeSecretKey') as string,
-        stripeWebhookSecret: formData.get('stripeWebhookSecret') as string,
+        stripePublicKey: (formData.get('stripePublicKey') as string)?.trim() || '',
+        stripeSecretKey: (formData.get('stripeSecretKey') as string)?.trim() || '',
+        stripeWebhookSecret: (formData.get('stripeWebhookSecret') as string)?.trim() || '',
         paypalEnabled: formData.get('paypalEnabled') === 'on',
-        paypalClientId: formData.get('paypalClientId') as string,
-        paypalClientSecret: formData.get('paypalClientSecret') as string,
+        paypalClientId: (formData.get('paypalClientId') as string)?.trim() || '',
+        paypalClientSecret: (formData.get('paypalClientSecret') as string)?.trim() || '',
         paypalEnvironment: (formData.get('paypalEnvironment') as 'sandbox' | 'production') || 'sandbox',
-        currency: formData.get('currency') as string
+        currency: (formData.get('currency') as string)?.trim() || 'USD'
       };
 
-      await updatePaymentSettings(settings.id, paymentData);
+      // Log the constructed payment data and the settings ID
+      console.log('Settings ID:', settings.id);
+      console.log('Payment data being sent:', { ...paymentData, stripeSecretKey: '***', paypalClientSecret: '***' });
+
+      // Make the API call
+      const updatedSettings = await updatePaymentSettings(settings.id, paymentData);
+      console.log('Payment settings updated successfully');
+      console.log('Updated settings:', {
+        payment: updatedSettings.paymentSettings,
+        paymentSettings: updatedSettings.paymentSettings
+      });
+
+      // Verify that both payment and paymentSettings were updated
+      if (!updatedSettings.paymentSettings || !updatedSettings.paymentSettings) {
+        console.warn('Payment settings might not be fully updated');
+      }
+
       toast.success("Payment settings updated successfully");
-      fetchSettings();
+      await fetchSettings();
     } catch (error) {
+      console.error('Failed to update payment settings:', error);
       toast.error("Failed to update payment settings");
     } finally {
       setSaving(false);
@@ -456,10 +482,19 @@ export default function GlobalSettingsPage() {
                     <div className="grid gap-4">
                       <div className="flex items-center justify-between space-x-2">
                         <Label htmlFor="stripeEnabled">Enable Stripe</Label>
+                        <input 
+                          type="hidden" 
+                          name="stripeEnabled" 
+                          value={settings?.paymentSettings.stripeEnabled ? 'on' : 'off'} 
+                        />
                         <Switch
                           id="stripeEnabled"
-                          name="stripeEnabled"
                           defaultChecked={settings?.paymentSettings.stripeEnabled}
+                          onCheckedChange={(checked) => {
+                            const input = document.querySelector('input[name="stripeEnabled"]') as HTMLInputElement;
+                            if (input) input.value = checked ? 'on' : 'off';
+                            console.log('Stripe enabled:', checked);
+                          }}
                         />
                       </div>
                       <div className="space-y-2">
@@ -468,6 +503,7 @@ export default function GlobalSettingsPage() {
                           id="stripePublicKey"
                           name="stripePublicKey"
                           defaultValue={settings?.paymentSettings.stripePublicKey}
+                          onChange={(e) => console.log('Stripe public key changed:', e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
@@ -477,6 +513,7 @@ export default function GlobalSettingsPage() {
                           name="stripeSecretKey"
                           type="password"
                           defaultValue={settings?.paymentSettings.stripeSecretKey}
+                          onChange={(e) => console.log('Stripe secret key changed')}
                         />
                       </div>
                       <div className="space-y-2">
@@ -486,6 +523,7 @@ export default function GlobalSettingsPage() {
                           name="stripeWebhookSecret"
                           type="password"
                           defaultValue={settings?.paymentSettings.stripeWebhookSecret}
+                          onChange={(e) => console.log('Stripe webhook secret changed')}
                         />
                       </div>
                     </div>
@@ -496,10 +534,19 @@ export default function GlobalSettingsPage() {
                     <div className="grid gap-4">
                       <div className="flex items-center justify-between space-x-2">
                         <Label htmlFor="paypalEnabled">Enable PayPal</Label>
+                        <input 
+                          type="hidden" 
+                          name="paypalEnabled" 
+                          value={settings?.paymentSettings.paypalEnabled ? 'on' : 'off'} 
+                        />
                         <Switch
                           id="paypalEnabled"
-                          name="paypalEnabled"
                           defaultChecked={settings?.paymentSettings.paypalEnabled}
+                          onCheckedChange={(checked) => {
+                            const input = document.querySelector('input[name="paypalEnabled"]') as HTMLInputElement;
+                            if (input) input.value = checked ? 'on' : 'off';
+                            console.log('PayPal enabled:', checked);
+                          }}
                         />
                       </div>
                       <div className="space-y-2">
@@ -508,6 +555,7 @@ export default function GlobalSettingsPage() {
                           id="paypalClientId"
                           name="paypalClientId"
                           defaultValue={settings?.paymentSettings.paypalClientId}
+                          onChange={(e) => console.log('PayPal client ID changed:', e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
@@ -517,6 +565,7 @@ export default function GlobalSettingsPage() {
                           name="paypalClientSecret"
                           type="password"
                           defaultValue={settings?.paymentSettings.paypalClientSecret}
+                          onChange={(e) => console.log('PayPal client secret changed')}
                         />
                       </div>
                       <div className="space-y-2">
@@ -526,6 +575,7 @@ export default function GlobalSettingsPage() {
                           name="paypalEnvironment"
                           className="w-full rounded-md border border-input bg-background px-3 py-2"
                           defaultValue={settings?.paymentSettings.paypalEnvironment}
+                          onChange={(e) => console.log('PayPal environment changed:', e.target.value)}
                         >
                           <option value="sandbox">Sandbox</option>
                           <option value="production">Production</option>
@@ -541,13 +591,21 @@ export default function GlobalSettingsPage() {
                       name="currency"
                       defaultValue={settings?.paymentSettings.currency}
                       placeholder="USD"
+                      onChange={(e) => console.log('Currency changed:', e.target.value)}
                     />
                   </div>
                 </div>
 
                 <div className="flex justify-end">
                   <Button type="submit" disabled={saving}>
-                    {saving ? "Saving..." : "Save Changes"}
+                    {saving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Changes'
+                    )}
                   </Button>
                 </div>
               </form>

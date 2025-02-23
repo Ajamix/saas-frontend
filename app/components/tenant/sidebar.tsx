@@ -46,6 +46,13 @@ const routes = [
     requiredPermission: { resource: 'subscriptions', action: 'read' as const }
   },
   {
+    label: 'Available Plans',
+    icon: CreditCard,
+    href: '/tenant-dashboard/subscription/plans',
+    color: "text-pink-500",
+    requiredPermission: { resource: 'subscriptions', action: 'read' as const }
+  },
+  {
     label: 'Activity Logs',
     icon: Activity,
     href: '/tenant-dashboard/activity',

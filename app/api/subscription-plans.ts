@@ -13,8 +13,12 @@ export interface SubscriptionPlan {
 }
 
 export const getSubscriptionPlans = async (): Promise<SubscriptionPlan[]> => {
-  return AuthClient.get('/super-admin/subscription-plans');
-};
+  return AuthClient.get('/super-admin/subscription-plans/admin');
+}
+
+export const getSubscriptionPlansForTenant = async (): Promise<SubscriptionPlan[]> => {
+  return AuthClient.get('/super-admin/subscription-plans/');
+}
 
 export const createSubscriptionPlan = async (plan: Omit<SubscriptionPlan, 'id'>): Promise<SubscriptionPlan> => {
   return AuthClient.post('/super-admin/subscription-plans', plan);

@@ -13,8 +13,8 @@ export function DynamicLandingPage() {
       try {
         const response = await fetch('/api/site-templates');
         const templates = await response.json();
-        const defaultTemplate = templates.find((t: any) => t.name === 'default');
-        
+        const defaultTemplate = templates.find((t: any) => t.data.isDefault);
+        console.log(templates);
         if (defaultTemplate) {
           setPageData(defaultTemplate.data);
         } else {

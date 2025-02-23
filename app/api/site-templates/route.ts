@@ -56,13 +56,52 @@ export async function PUT(req: Request) {
   try {
     await ensureTemplatesDir();
     const body = await req.json();
-    await fs.writeFile(
-      path.join(templatesDir, 'default.json'), 
-      JSON.stringify(body, null, 2)
-    );
+    const { templateName } = body;
+
+    if (!templateName) {
+      return NextResponse.json({ error: 'Template name is required' }, { status: 400 });
+    }
+
+    const files = await fs.readdir(templatesDir);
+    
+    // Update all templates, setting isDefault to false except for the selected one
+    for (const file of files) {
+      if (!file.endsWith('.json')) continue;
+      
+      const filePath = path.join(templatesDir, file);
+      const content = await fs.readFile(filePath, 'utf-8');
+      const templateData = JSON.parse(content);
+      
+      // Set isDefault based on whether this is the selected template
+      templateData.isDefault = file === `${templateName}.json`;
+      
+      await fs.writeFile(filePath, JSON.stringify(templateData, null, 2));
+    }
+
     return NextResponse.json({ message: 'Default template set successfully' });
   } catch (error) {
     console.error('Failed to set default template:', error);
     return NextResponse.json({ error: 'Failed to set default template' }, { status: 500 });
+  }
+}
+
+// DELETE: Remove a template
+export async function DELETE(req: Request) {
+  try {
+    await ensureTemplatesDir();
+    const body = await req.json();
+    const { templateName } = body;
+
+    if (!templateName) {
+      return NextResponse.json({ error: 'Template name is required' }, { status: 400 });
+    }
+
+    const filePath = path.join(templatesDir, `${templateName}.json`);
+    await fs.unlink(filePath); // Delete the file
+
+    return NextResponse.json({ message: 'Template deleted successfully' });
+  } catch (error) {
+    console.error('Failed to delete template:', error);
+    return NextResponse.json({ error: 'Failed to delete template' }, { status: 500 });
   }
 } 
